@@ -17,6 +17,8 @@ concurrency:
 env:
   VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
   VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+  # The smoke test parses stdout; keep the CLI's telemetry notice out of it.
+  VERCEL_TELEMETRY_DISABLED: 1
 
 jobs:
   verify:
@@ -52,7 +54,9 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Install Vercel CLI
-        run: npm install --global vercel@latest
+        # Pinned, not @latest: this workflow is the production gate, and a CLI
+        # release should not be able to change it without a commit here.
+        run: npm install --global vercel@59.16.0
       - name: Pull project settings
         run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
       - name: Build
@@ -66,6 +70,12 @@ jobs:
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Deployed $url"
       - name: Smoke test
+        # `vercel deploy` prints the unique deployment URL, and deployment
+        # protection gates that URL even for a production deployment: the
+        # production domain is public, the generated one is not. `vercel curl`
+        # carries the token through, so this reads the health route rather
+        # than a login page. Anything that is not the expected JSON -- an
+        # error body, an HTML interstitial -- fails the parse and the job.
         run: |
-          curl --fail --silent --show-error "${{ steps.deploy.outputs.url }}/api/v1/health" | tee health.json
+          vercel curl /api/v1/health --deployment "${{ steps.deploy.outputs.url }}" --yes --token=${{ secrets.VERCEL_TOKEN }} | tee health.json
           node -e "const h=require('./health.json'); if(!h.ok) process.exit(1)"
