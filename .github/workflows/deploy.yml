@@ -87,10 +87,19 @@ jobs:
         # The URL goes in as the positional argument, with the path appended.
         # Passing a full URL to --deployment alongside a path builds a
         # malformed URL and curl rejects it before any request is made.
+        #
+        # Authentication comes from VERCEL_TOKEN in the environment, not from
+        # --token. This subcommand forwards every flag it does not recognise
+        # to the curl binary, and --token is one it does not recognise, so
+        # curl rejected it as an unknown option and the request never ran.
+        # Every other step accepts --token, which is why only this one broke.
+        #
         # Flags after -- go to curl itself: --fail turns an HTTP error into a
         # non-zero exit, and --silent keeps the progress meter out of the
         # body. Anything that is not the expected JSON -- an error body, an
         # HTML interstitial -- fails the parse and the job.
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
-          vercel curl "${{ steps.deploy.outputs.url }}/api/v1/health" --yes --token=${{ secrets.VERCEL_TOKEN }} -- --fail --silent --show-error | tee health.json
+          vercel curl "${{ steps.deploy.outputs.url }}/api/v1/health" --yes -- --fail --silent --show-error | tee health.json
           node -e "const h=require('./health.json'); if(!h.ok) process.exit(1)"
