@@ -11,7 +11,7 @@
     "dev": "next dev",
     "start": "next start",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
     "@kreaton/core": "1.0.0",
