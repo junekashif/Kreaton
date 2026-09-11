@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { POLICY_PRESETS } from '@kreaton/core';
 import { AnimatedNumber } from '../components/AnimatedNumber';
 import { AssessmentPanel } from '../components/AssessmentPanel';
@@ -15,6 +15,22 @@ export default function ConsolePage() {
   const { snap, session } = useSession();
   const [scenarioId, setScenarioId] = useState(SCENARIOS[0]!.id);
   const [interventionsOnly, setInterventionsOnly] = useState(false);
+  const asideRef = useRef<HTMLElement>(null);
+
+  /* Above 1100px the aside is sticky and the answer is already on screen.
+     Below that it is stacked under a feed of up to forty cards, so choosing
+     a row would update a panel thousands of pixels away; bring it into view
+     instead. The sticky breakpoint and this one must stay in step. */
+  const selectAndReveal = useCallback(
+    (id: string) => {
+      session.select(id);
+      if (typeof window !== 'undefined' && window.innerWidth <= 1100) {
+        const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+        asideRef.current?.scrollIntoView({ block: 'start', behavior: reduced ? 'auto' : 'smooth' });
+      }
+    },
+    [session],
+  );
 
   const stats = useMemo(() => summarise(snap.decisions), [snap.decisions]);
 
@@ -224,13 +240,13 @@ export default function ConsolePage() {
             <Feed
               decisions={snap.decisions}
               selectedTxnId={selected?.txn.txnId ?? null}
-              onSelect={(id) => session.select(id)}
+              onSelect={selectAndReveal}
               interventionsOnly={interventionsOnly}
             />
           </section>
         </div>
 
-        <aside>
+        <aside ref={asideRef}>
           <section className="panel" style={{ paddingTop: 10 }}>
             <header>
               <h2>Why it decided that</h2>

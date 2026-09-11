@@ -95,7 +95,14 @@ export function Feed({ decisions, selectedTxnId, onSelect, limit = 40, intervent
                   <DecisionTag action={a.decision} override={Boolean(a.protocolOverride)} />
                 </td>
                 <td className="feed-why small muted" data-label="Why">
-                  {top ? `${top.reasonCode} ${top.evidence}` : 'No signal fired'}
+                  {top ? (
+                    <>
+                      <span className="reason-code">{top.reasonCode}</span>
+                      {top.evidence}
+                    </>
+                  ) : (
+                    'No signal fired'
+                  )}
                 </td>
               </tr>
             );

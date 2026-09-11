@@ -23,8 +23,11 @@
 
   --fg-0: oklch(0.94 0.008 250);
   --fg-1: oklch(0.74 0.01 250);
-  --fg-2: oklch(0.55 0.01 250);
-  --fg-3: oklch(0.42 0.01 250);
+  /* Secondary and tertiary text. fg-2 is set where it clears 4.5:1 against
+     both the page ground and the raised plane the key sits on; fg-3 clears
+     3:1 and is only used on labels that sit beside a fg-2 or fg-0 partner. */
+  --fg-2: oklch(0.59 0.01 250);
+  --fg-3: oklch(0.5 0.01 250);
 
   /* Decision hues. Approve is deliberately quiet: it is the ordinary case.
      Approve sits at hue 195, a teal rather than a green, because green against
@@ -670,6 +673,22 @@ table.evidence td {
   align-items: start;
 }
 
+/* The assessment sits beside a feed that grows to forty rows; without this
+   a click at the bottom of the feed updates a panel four hundred pixels
+   above the viewport. Sticky keeps the answer where the question was asked.
+   The panel scrolls inside itself when the evidence runs longer than the
+   window. */
+@media (min-width: 1101px) {
+  .console-grid > aside {
+    position: sticky;
+    top: var(--nav-h);
+    max-height: calc(100vh - var(--nav-h));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+  }
+}
+
 @media (max-width: 1100px) {
   .console-grid,
   .two-col,
@@ -921,7 +940,7 @@ pre.doc {
 .segmented {
   display: inline-flex;
   gap: 2px;
-  padding: 2px;
+  padding: 3px;
   background: var(--bg-1);
   border: 1px solid var(--line);
   border-radius: var(--radius-control);
@@ -939,12 +958,47 @@ pre.doc {
   color: var(--fg-0);
 }
 
-/* Secondary, technical name under a plain column heading. */
+/* The reason column takes whatever width the fixed columns leave. A hard
+   minimum here forced the whole table sideways at 1440px, which clipped the
+   reasons it was meant to make readable; a wide column that wraps to two
+   lines beats a wider one that scrolls off the edge. */
+table.feed th.feed-why,
+table.feed td.feed-why {
+  width: 34%;
+  min-width: 0;
+}
+
+table.feed {
+  table-layout: auto;
+  width: 100%;
+}
+
+/* A reason code beside its evidence in the same style read as one token:
+   "APP-FAN-1 5 distinct payers" became "APP-FAN-15 distinct payers". The
+   code takes the data face and a separator. */
+.reason-code {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--fg-2);
+  margin-right: 6px;
+}
+
+.reason-code::after {
+  content: '·';
+  margin-left: 6px;
+  color: var(--fg-3);
+}
+
+/* Secondary, technical name under a plain column heading. It sits on its
+   own line: inline, "Scam risk p(fraud)" held its column open at 141px for
+   a value sixty pixels wide, and the reason column paid for it. */
 .th-sub {
+  display: block;
   color: var(--fg-3);
   font-family: var(--font-mono);
   font-size: 10.5px;
   font-weight: 400;
+  line-height: 1.2;
   white-space: nowrap;
 }
 
@@ -1173,6 +1227,27 @@ tr.selectable:focus-visible {
 
   table.feed tr.fresh {
     animation: row-in var(--dur-slow) var(--ease-out);
+  }
+
+  /* In card mode the row is the surface, so selection and hover paint the
+     row rather than each cell; per-cell paint left three separate dark
+     rectangles inside one card. */
+  table.feed tr.selectable:hover td,
+  table.feed tr[aria-selected='true'] td {
+    background: transparent;
+  }
+
+  table.feed tr.selectable:hover {
+    background: var(--bg-1);
+  }
+
+  table.feed tr[aria-selected='true'] {
+    background: var(--bg-2);
+  }
+
+  .panel > header {
+    flex-wrap: wrap;
+    row-gap: 8px;
   }
 
   .key-gloss {
