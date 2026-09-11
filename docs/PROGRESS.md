@@ -126,6 +126,14 @@ python analysis/sensitivity.py
 - **Vercel project and secrets** are not set up: create the project with Root Directory
   `apps/web`, then add `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` to the repo.
   `deploy.yml` will fail on every push until then; `ci.yml` should pass.
+  Two things in that workflow were corrected before it ever ran. The smoke test used a
+  plain `curl` against the URL `vercel deploy` prints, which is the unique deployment URL
+  rather than the production domain: deployment protection gates it, so the test would
+  have read a login page and failed every deploy. It now goes through `vercel curl`,
+  which carries the token (that subcommand is in beta; if it is ever withdrawn, the
+  alternatives are a `--protection-bypass` secret or testing the production domain
+  instead). The CLI is also pinned to `vercel@59.16.0` rather than `@latest`, so a CLI
+  release cannot change the production gate without a commit here.
 - **PaySim** has not been run on real data (no Kaggle download in this environment). The
   adapter's code path was smoke-tested with a throwaway file in PaySim's format, which was
   deleted. Results on the real file should go in `data/paysim-metrics.json` and be mentioned in
