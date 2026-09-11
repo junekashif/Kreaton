@@ -172,23 +172,29 @@ export function Ribbon({
         </g>
         <text
           x={width - PAD.right - 4}
-          y={y(surface[surface.length - 1]!.approveToStepUp) + 12}
+          y={y(surface[surface.length - 1]!.approveToStepUp) + 15}
           textAnchor="end"
           fill="var(--stepup)"
+          stroke="var(--bg-0)"
+          strokeWidth={3.5}
+          paintOrder="stroke"
           fontSize={10}
           fontFamily="var(--font-mono)"
         >
-          hold above
+          held above
         </text>
         <text
           x={width - PAD.right - 4}
-          y={y(surface[surface.length - 1]!.stepUpToBlock) - 5}
+          y={y(surface[surface.length - 1]!.stepUpToBlock) - 9}
           textAnchor="end"
           fill="var(--block)"
+          stroke="var(--bg-0)"
+          strokeWidth={3.5}
+          paintOrder="stroke"
           fontSize={10}
           fontFamily="var(--font-mono)"
         >
-          block above
+          blocked above
         </text>
 
         {/* Marks. Oldest first so the newest paint on top. */}

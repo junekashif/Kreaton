@@ -26,21 +26,30 @@
   --fg-2: oklch(0.55 0.01 250);
   --fg-3: oklch(0.42 0.01 250);
 
-  /* Decision hues. Approve is deliberately quiet: it is the ordinary case. */
-  --approve: oklch(0.72 0.09 165);
+  /* Decision hues. Approve is deliberately quiet: it is the ordinary case.
+     Approve sits at hue 195, a teal rather than a green, because green against
+     the block red collapses to a deutan delta-E of 7.6 -- the most important
+     distinction in the product, and the weakest one for the commonest colour
+     vision deficiency. At 195 the worst pair is block against hold at 13.5. */
+  --approve: oklch(0.72 0.105 195);
   --stepup: oklch(0.8 0.15 70);
   --block: oklch(0.68 0.22 20);
 
   /* Risk ramp stops, luminance-monotonic. Used by the ramp function in risk.ts;
      duplicated here so CSS gradients and legends match the SVG exactly. */
-  --risk-0: oklch(0.36 0.1 290);
-  --risk-25: oklch(0.48 0.2 310);
+  --risk-0: oklch(0.44 0.12 290);
+  --risk-25: oklch(0.52 0.2 310);
   --risk-50: oklch(0.6 0.24 350);
   --risk-75: oklch(0.76 0.17 60);
   --risk-100: oklch(0.93 0.16 95);
 
   --font-ui: var(--font-instrument), 'Instrument Sans', system-ui, sans-serif;
   --font-mono: var(--font-plex-mono), 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast: 120ms;
+  --dur: 220ms;
+  --dur-slow: 420ms;
 
   --radius-control: 6px;
   --radius-data: 1px;
@@ -65,8 +74,8 @@ body {
   background: var(--bg-0);
   color: var(--fg-0);
   font-family: var(--font-ui);
-  font-size: 13.5px;
-  line-height: 1.45;
+  font-size: clamp(14px, 0.35vw + 12.8px, 15.5px);
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
@@ -113,17 +122,18 @@ h3 {
 }
 
 h1 {
-  font-size: 22px;
-  line-height: 1.2;
+  font-size: clamp(23px, 1.15vw + 18.4px, 31px);
+  line-height: 1.15;
+  letter-spacing: -0.015em;
 }
 
 h2 {
-  font-size: 15px;
+  font-size: clamp(15px, 0.25vw + 14.2px, 17px);
   line-height: 1.3;
 }
 
 h3 {
-  font-size: 13.5px;
+  font-size: 14px;
   color: var(--fg-1);
 }
 
@@ -136,11 +146,11 @@ h3 {
 }
 
 .small {
-  font-size: 12px;
+  font-size: 12.5px;
 }
 
 .tiny {
-  font-size: 11px;
+  font-size: 11.5px;
 }
 
 p.lede {
@@ -309,14 +319,14 @@ main {
 
 .stat .label {
   color: var(--fg-2);
-  font-size: 11.5px;
+  font-size: 12px;
   margin-bottom: 2px;
 }
 
 .stat .value {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  font-size: 19px;
+  font-size: clamp(19px, 0.7vw + 15.5px, 24px);
   line-height: 1.15;
 }
 
@@ -328,7 +338,7 @@ main {
 
 .stat .sub {
   color: var(--fg-2);
-  font-size: 11.5px;
+  font-size: 12px;
   margin-top: 2px;
 }
 
@@ -769,5 +779,522 @@ pre.doc {
 
   :root {
     --gutter: 16px;
+  }
+}
+
+/* ----------------------------------------------------------------------------
+   Orientation
+
+   The console opens by saying what it is for, in the words a payer would use,
+   and by showing the three things that can happen to a payment. The key is the
+   legend as well as the explanation: same glyphs, same hues, same counts as
+   the ribbon and the feed below it.
+---------------------------------------------------------------------------- */
+
+.orient {
+  padding: 6px 0 18px;
+}
+
+.orient h1 {
+  max-width: 20ch;
+  text-wrap: balance;
+}
+
+.orient .lede {
+  margin-top: 8px;
+  max-width: 62ch;
+  font-size: clamp(13.5px, 0.3vw + 12.5px, 15px);
+}
+
+.key {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 1px;
+  list-style: none;
+  margin: 18px 0 0;
+  max-width: 1080px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-data);
+  overflow: hidden;
+}
+
+.key-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 11px 13px;
+  background: var(--bg-1);
+}
+
+.key-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.key-item[data-action='APPROVE'] .key-head {
+  color: var(--approve);
+}
+
+.key-item[data-action='STEP_UP'] .key-head {
+  color: var(--stepup);
+}
+
+.key-item[data-action='BLOCK'] .key-head {
+  color: var(--block);
+}
+
+.key-title {
+  font-weight: 500;
+  font-size: 13.5px;
+  letter-spacing: 0.005em;
+}
+
+.key-count {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 17px;
+  color: var(--fg-0);
+}
+
+.key-gloss {
+  color: var(--fg-2);
+  font-size: 12.5px;
+  line-height: 1.4;
+  max-width: 40ch;
+}
+
+/* Transport. One primary action, named for what it does. */
+
+.transport {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 16px;
+}
+
+.transport-progress {
+  margin-left: auto;
+}
+
+.btn.cta {
+  height: 34px;
+  padding: 0 15px;
+  background: var(--fg-0);
+  color: var(--bg-0);
+  border-color: var(--fg-0);
+  font-weight: 500;
+  font-size: 13.5px;
+}
+
+.btn.cta:hover:not(:disabled) {
+  background: oklch(0.88 0.01 250);
+}
+
+.cta-glyph {
+  display: inline-flex;
+  margin-right: 1px;
+}
+
+/* The one piece of motion nobody asked for: the console is useless until the
+   replay is started, and the pristine state gives no other cue. It breathes
+   only before the first payment, and never again. */
+.btn.cta[data-attention='true'] {
+  animation: breathe 2.6s var(--ease-out) infinite;
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 oklch(0.94 0.008 250 / 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 5px oklch(0.94 0.008 250 / 0);
+  }
+}
+
+/* Segmented filter above the feed. */
+
+.segmented {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  background: var(--bg-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+}
+
+.segmented .btn {
+  height: 24px;
+  font-size: 12px;
+  border-radius: 4px;
+}
+
+.segmented .btn[aria-pressed='true'] {
+  background: var(--bg-3);
+  border-color: transparent;
+  color: var(--fg-0);
+}
+
+/* Secondary, technical name under a plain column heading. */
+.th-sub {
+  color: var(--fg-3);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+/* ----------------------------------------------------------------------------
+   Motion
+
+   Every animation here reports a change in the data: a figure moving to a new
+   value, a payment arriving, a decision landing. Nothing animates on scroll,
+   and nothing animates merely because it appeared.
+---------------------------------------------------------------------------- */
+
+table.feed tr.fresh td {
+  animation: row-in var(--dur-slow) var(--ease-out);
+}
+
+@keyframes row-in {
+  from {
+    background: var(--wash, var(--bg-2));
+  }
+  to {
+    background: transparent;
+  }
+}
+
+table.feed tr[data-action='APPROVE'] {
+  --wash: oklch(0.72 0.105 195 / 0.14);
+}
+
+table.feed tr[data-action='STEP_UP'] {
+  --wash: oklch(0.8 0.15 70 / 0.2);
+}
+
+table.feed tr[data-action='BLOCK'] {
+  --wash: oklch(0.68 0.22 20 / 0.26);
+}
+
+/* An interception is the event the whole console exists for; the newest such
+   row marks itself with a rule in its own colour rather than a louder wash. */
+table.feed tr.fresh[data-action='STEP_UP'] td:first-child {
+  box-shadow: inset 2px 0 0 var(--stepup);
+}
+
+table.feed tr.fresh[data-action='BLOCK'] td:first-child {
+  box-shadow: inset 2px 0 0 var(--block);
+}
+
+.nav .status .live[data-on='true']::before {
+  animation: pulse 2.4s var(--ease-out) infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.btn,
+.segmented .btn,
+select.select,
+table.data tr.selectable td {
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+
+/* Keyboard focus must always be visible, including where a hover style exists. */
+a:focus-visible,
+button:focus-visible,
+select:focus-visible,
+input:focus-visible,
+tr.selectable:focus-visible {
+  outline: 2px solid var(--line-focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ----------------------------------------------------------------------------
+   Touch and narrow screens
+---------------------------------------------------------------------------- */
+
+/* A finger is not a cursor: controls reach the 44px target, and form controls
+   reach 16px so that iOS does not zoom the page when they are focused. */
+@media (pointer: coarse) {
+  .btn,
+  select.select,
+  input.input {
+    min-height: 44px;
+    padding-inline: 14px;
+    font-size: 16px;
+  }
+
+  .btn.cta {
+    height: 48px;
+  }
+
+  .segmented .btn {
+    min-height: 36px;
+    font-size: 13px;
+  }
+
+  .nav a.item {
+    padding-inline: 14px;
+  }
+
+  table.data tr.selectable td {
+    padding-block: 10px;
+  }
+}
+
+@media (max-width: 900px) {
+  /* The nav scrolls past its last item with the scrollbar hidden; the fade is
+     the only thing telling anyone the rest of it is there. */
+  .nav {
+    -webkit-mask-image: linear-gradient(to right, #000 86%, transparent);
+    mask-image: linear-gradient(to right, #000 86%, transparent);
+  }
+
+  .transport-progress {
+    margin-left: 0;
+    width: 100%;
+  }
+}
+
+/* Below this the feed stops being a table and becomes one card per payment.
+   Seven columns cannot be read on a phone, and a horizontal scrollbar hides
+   the decision, which is the one column that matters. */
+@media (max-width: 760px) {
+  table.feed,
+  table.feed tbody,
+  table.feed tr,
+  table.feed td {
+    display: block;
+  }
+
+  table.feed thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  table.feed tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'time     decision'
+      'from     amount'
+      'to       risk'
+      'why      why';
+    gap: 2px 12px;
+    padding: 11px 2px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  table.feed td {
+    padding: 0;
+    border: 0;
+  }
+
+  table.feed td:nth-child(1) {
+    grid-area: time;
+    color: var(--fg-2);
+  }
+
+  table.feed td:nth-child(2) {
+    grid-area: from;
+  }
+
+  table.feed td:nth-child(3) {
+    grid-area: to;
+  }
+
+  table.feed td:nth-child(4) {
+    grid-area: amount;
+    text-align: right;
+    font-family: var(--font-mono);
+    font-size: 15px;
+  }
+
+  table.feed td:nth-child(5) {
+    grid-area: risk;
+    text-align: right;
+  }
+
+  table.feed td:nth-child(6) {
+    grid-area: decision;
+    text-align: right;
+  }
+
+  table.feed td:nth-child(7) {
+    grid-area: why;
+    margin-top: 5px;
+    padding-top: 5px;
+    border-top: 1px dashed var(--line);
+  }
+
+  /* The label the hidden header used to carry, restored inline. */
+  table.feed td:nth-child(2)::before,
+  table.feed td:nth-child(3)::before {
+    content: attr(data-label) ' ';
+    color: var(--fg-3);
+    font-family: var(--font-ui);
+    font-size: 11.5px;
+  }
+
+  table.feed tr.fresh td {
+    animation: none;
+  }
+
+  table.feed tr.fresh {
+    animation: row-in var(--dur-slow) var(--ease-out);
+  }
+
+  .key-gloss {
+    max-width: none;
+  }
+}
+
+/* The evidence table has five columns of which four are numeric, and its
+   fixed column widths crush to about 60px on a phone -- enough to break
+   "weighted indicator count" to one character per line. On narrow screens each
+   signal becomes a block instead: what fired, what it contributed, and the
+   measurement underneath. */
+@media (max-width: 760px) {
+  table.evidence {
+    table-layout: auto;
+  }
+
+  table.evidence,
+  table.evidence tbody,
+  table.evidence tr,
+  table.evidence td {
+    display: block;
+  }
+
+  table.evidence thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  table.evidence tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'signal nats'
+      'meas   llr'
+      'bar    bar';
+    gap: 1px 10px;
+    padding: 9px 2px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  table.evidence td {
+    padding: 0;
+    border: 0;
+  }
+
+  table.evidence td:nth-child(1) {
+    grid-area: signal;
+  }
+
+  table.evidence td:nth-child(2) {
+    grid-area: meas;
+    text-align: left;
+    color: var(--fg-1);
+    font-size: 12px;
+  }
+
+  table.evidence td:nth-child(3) {
+    grid-area: llr;
+    text-align: right;
+    color: var(--fg-1);
+    font-size: 12px;
+  }
+
+  table.evidence td:nth-child(4) {
+    grid-area: bar;
+    margin-top: 4px;
+  }
+
+  table.evidence td:nth-child(5) {
+    grid-area: nats;
+    text-align: right;
+    font-family: var(--font-mono);
+  }
+
+  /* The units and weights stop being a second line inside a narrow cell. */
+  table.evidence td:nth-child(2) .tiny,
+  table.evidence td:nth-child(3) .tiny {
+    display: inline;
+    margin-left: 4px;
+  }
+
+  table.evidence td:nth-child(2)::before {
+    content: 'measured ';
+    color: var(--fg-3);
+  }
+
+  table.evidence td:nth-child(3)::before {
+    content: 'LLR ';
+    color: var(--fg-3);
+  }
+}
+
+/* Data tables on a phone.
+
+   Headings are held on one line so a wide table stays scannable, which is
+   right at a desk and wrong on a phone: a heading like "Measured FPR" then
+   holds a column open past the viewport and pushes the page sideways. Below
+   the card breakpoint headings wrap and long identifiers break, so tables
+   inside a scroll container still scroll, and the ones outside one fit. */
+@media (max-width: 760px) {
+  table.data th {
+    white-space: normal;
+  }
+
+  /* break-word, not anywhere: anywhere breaks prose mid-syllable, which turns
+     a description column into one letter per line. This breaks only tokens
+     that cannot fit at all, which is what VPAs and ledger hashes are. */
+  table.data td {
+    overflow-wrap: break-word;
+  }
+
+  /* A table that still cannot fit scrolls inside itself rather than dragging
+     the whole page sideways. The feed and the evidence table are excluded:
+     both become cards at this width and have no columns left to scroll. */
+  table.data:not(.feed):not(.evidence) {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
   }
 }

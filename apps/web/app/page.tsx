@@ -2,7 +2,9 @@
 
 import { useMemo, useState } from 'react';
 import { POLICY_PRESETS } from '@kreaton/core';
+import { AnimatedNumber } from '../components/AnimatedNumber';
 import { AssessmentPanel } from '../components/AssessmentPanel';
+import { DecisionKey } from '../components/DecisionKey';
 import { Feed } from '../components/Feed';
 import { Ribbon } from '../components/Ribbon';
 import { formatINRCompact, pct, withCommas } from '../lib/format';
@@ -12,6 +14,7 @@ import { useSession } from '../lib/use-session';
 export default function ConsolePage() {
   const { snap, session } = useSession();
   const [scenarioId, setScenarioId] = useState(SCENARIOS[0]!.id);
+  const [interventionsOnly, setInterventionsOnly] = useState(false);
 
   const stats = useMemo(() => summarise(snap.decisions), [snap.decisions]);
 
@@ -47,30 +50,47 @@ export default function ConsolePage() {
 
   return (
     <>
-      <div className="row between mb" style={{ alignItems: 'flex-end' }}>
-        <div>
-          <h1>Interception console</h1>
-          <p className="lede small">
-            Every payment below is authorised by the engine running in this tab, against profiles warmed on
-            the sixty days before the window. Marks sit at their amount and calibrated risk; the curves are
-            the decision boundaries the current policy implies.
-          </p>
-        </div>
-        <div className="btn-row">
+      <section className="orient">
+        <h1>Scam payments, stopped before the money moves</h1>
+        <p className="lede">
+          In an authorised push payment scam the victim is talked into paying, so the bank sees an
+          ordinary transfer and lets it through. Kreaton reads every payment at the instant it is
+          authorised &mdash; in well under a millisecond &mdash; and decides what happens to it.
+        </p>
+
+        <DecisionKey counts={{ APPROVE: stats.approve, STEP_UP: stats.stepUp, BLOCK: stats.block }} />
+
+        <div className="transport">
           {snap.playing ? (
-            <button className="btn primary" onClick={() => session.pause()}>
+            <button className="btn cta" onClick={() => session.pause()}>
+              <span className="cta-glyph" aria-hidden>
+                <svg viewBox="0 0 10 10" width={11} height={11}>
+                  <rect x={1.5} y={1} width={2.5} height={8} fill="currentColor" />
+                  <rect x={6} y={1} width={2.5} height={8} fill="currentColor" />
+                </svg>
+              </span>
               Pause
             </button>
           ) : (
-            <button className="btn primary" onClick={() => session.play()} disabled={snap.cursor >= snap.total}>
-              Play
+            <button
+              className="btn cta"
+              data-attention={snap.cursor === 0 ? 'true' : undefined}
+              onClick={() => session.play()}
+              disabled={snap.cursor >= snap.total}
+            >
+              <span className="cta-glyph" aria-hidden>
+                <svg viewBox="0 0 10 10" width={11} height={11}>
+                  <path d="M2,1 L9,5 L2,9 Z" fill="currentColor" />
+                </svg>
+              </span>
+              {snap.cursor === 0 ? 'Watch it run' : 'Resume'}
             </button>
           )}
           <button className="btn" onClick={() => session.step(1)} disabled={snap.cursor >= snap.total}>
-            Step
+            One payment
           </button>
           <button className="btn" onClick={() => session.step(50)} disabled={snap.cursor >= snap.total}>
-            +50
+            Skip 50
           </button>
           <select
             className="select"
@@ -87,28 +107,49 @@ export default function ConsolePage() {
           <button className="btn quiet" onClick={() => session.reset()}>
             Rewind
           </button>
+          <span className="transport-progress small faint">
+            {withCommas(snap.cursor)} of {withCommas(snap.total)} payments replayed
+          </span>
         </div>
-      </div>
+      </section>
 
       <div className="stats panel" style={{ borderTop: '1px solid var(--line)' }}>
-        <Stat label="screened" value={withCommas(stats.screened)} sub={`of ${withCommas(snap.total)} in window · ${formatINRCompact(stats.valuePaise)}`} />
-        <Stat label="approved · held · blocked" value={`${stats.approve} · ${stats.stepUp} · ${stats.block}`} sub={`${pct(stats.interventionRate, 2)} intervened`} />
         <Stat
-          label="fraud caught"
-          value={stats.fraud > 0 ? `${stats.fraudCaught}/${stats.fraud}` : '—'}
-          sub={stats.fraud > 0 ? `${pct(stats.fraudCaught / stats.fraud, 0)} of labelled fraud so far` : 'none in the stream yet'}
+          label="Payments screened"
+          animate={stats.screened}
+          format={(n) => withCommas(Math.round(n))}
+          sub={`of ${withCommas(snap.total)} in this window · ${formatINRCompact(stats.valuePaise)}`}
         />
-        <Stat label="false positives" value={stats.legit > 0 ? pct(stats.legitIntervened / stats.legit, 2) : '—'} sub={`${stats.legitIntervened} of ${withCommas(stats.legit)} legitimate`} />
-        <Stat label="liability avoided" value={formatINRCompact(stats.liabilityAvoidedPaise)} sub="conservative, net of recovery" />
-        <Stat label="latency p99" value={`${stats.p99.toFixed(3)} ms`} sub={`mean ${stats.mean.toFixed(3)} ms`} />
-        <Stat label="ledger" value={withCommas(session.storeRef.ledger.length)} sub={`head ${session.storeRef.ledger.head.slice(0, 10)}`} />
+        <Stat
+          label="Scams caught"
+          value={stats.fraud > 0 ? `${stats.fraudCaught} of ${stats.fraud}` : '—'}
+          sub={stats.fraud > 0 ? `${pct(stats.fraudCaught / stats.fraud, 0)} of the scams in the stream so far` : 'none in the stream yet'}
+        />
+        <Stat
+          label="Genuine payments stopped"
+          value={stats.legit > 0 ? pct(stats.legitIntervened / stats.legit, 2) : '—'}
+          sub={`${withCommas(stats.legitIntervened)} of ${withCommas(stats.legit)} genuine · false positive rate`}
+        />
+        <Stat
+          label="Money protected"
+          animate={stats.liabilityAvoidedPaise}
+          format={(n) => formatINRCompact(Math.round(n))}
+          sub="conservative, after expected recovery"
+        />
+        <Stat label="Decision time" value={`${stats.p99.toFixed(3)} ms`} sub={`99th percentile · mean ${stats.mean.toFixed(3)} ms`} />
+        <Stat
+          label="Audit entries"
+          animate={session.storeRef.ledger.length}
+          format={(n) => withCommas(Math.round(n))}
+          sub={`tamper-evident chain · head ${session.storeRef.ledger.head.slice(0, 8)}`}
+        />
       </div>
 
       <div className="console-grid">
         <div>
           <section className="panel" style={{ paddingTop: 10 }}>
             <header>
-              <h2>Interception ribbon</h2>
+              <h2>Every payment, placed by size and risk</h2>
               <div className="row" style={{ gap: 8 }}>
                 <span className="meta">policy</span>
                 <select
@@ -137,8 +178,8 @@ export default function ConsolePage() {
 
           <section className="panel">
             <header>
-              <h2>Inject an episode</h2>
-              <span className="meta">runs against a real payer from the feed, at the engine clock</span>
+              <h2>Try a scam on it yourself</h2>
+              <span className="meta">runs a known scam pattern against a payer from the feed, at the engine clock</span>
             </header>
             <div className="row" style={{ alignItems: 'flex-start' }}>
               <select className="select" value={scenarioId} onChange={(e) => setScenarioId(e.target.value)} aria-label="Scenario">
@@ -162,17 +203,37 @@ export default function ConsolePage() {
 
           <section className="panel">
             <header>
-              <h2>Feed</h2>
-              <span className="meta">newest first · click a row to inspect</span>
+              <h2>What the engine just did</h2>
+              <div className="segmented" role="group" aria-label="Filter the feed">
+                <button
+                  className="btn quiet"
+                  aria-pressed={!interventionsOnly}
+                  onClick={() => setInterventionsOnly(false)}
+                >
+                  Every payment
+                </button>
+                <button
+                  className="btn quiet"
+                  aria-pressed={interventionsOnly}
+                  onClick={() => setInterventionsOnly(true)}
+                >
+                  Only the ones it stopped
+                </button>
+              </div>
             </header>
-            <Feed decisions={snap.decisions} selectedTxnId={selected?.txn.txnId ?? null} onSelect={(id) => session.select(id)} />
+            <Feed
+              decisions={snap.decisions}
+              selectedTxnId={selected?.txn.txnId ?? null}
+              onSelect={(id) => session.select(id)}
+              interventionsOnly={interventionsOnly}
+            />
           </section>
         </div>
 
         <aside>
           <section className="panel" style={{ paddingTop: 10 }}>
             <header>
-              <h2>Assessment</h2>
+              <h2>Why it decided that</h2>
               {selected ? (
                 <button className="btn quiet small" onClick={() => session.select(null)}>
                   follow latest
@@ -205,11 +266,25 @@ export default function ConsolePage() {
   );
 }
 
-function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
+function Stat({
+  label,
+  value,
+  animate,
+  format,
+  sub,
+}: {
+  label: string;
+  value?: string;
+  animate?: number;
+  format?: (n: number) => string;
+  sub?: string;
+}) {
   return (
     <div className="stat">
       <div className="label">{label}</div>
-      <div className="value">{value}</div>
+      <div className="value">
+        {animate !== undefined && format ? <AnimatedNumber value={animate} format={format} /> : value}
+      </div>
       {sub ? <div className="sub">{sub}</div> : null}
     </div>
   );

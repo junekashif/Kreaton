@@ -7,6 +7,9 @@
  * perceived steps are even. The stops are mirrored as CSS custom properties in
  * globals.css; change both together.
  *
+ * The light end stops at L 0.44 rather than lower: below that the quietest
+ * marks fall under a 2:1 contrast ratio against the ground and disappear.
+ *
  * Probabilities are positioned on a log-odds axis rather than a linear one,
  * because almost every payment sits below one percent and a linear ramp would
  * paint the whole feed the same indigo.
@@ -21,8 +24,8 @@ interface Stop {
 
 /* Hues are unwrapped so interpolation runs 290 -> 455 without crossing back. */
 const STOPS: readonly Stop[] = [
-  { t: 0, l: 0.36, c: 0.1, h: 290 },
-  { t: 0.25, l: 0.48, c: 0.2, h: 310 },
+  { t: 0, l: 0.44, c: 0.12, h: 290 },
+  { t: 0.25, l: 0.52, c: 0.2, h: 310 },
   { t: 0.5, l: 0.6, c: 0.24, h: 350 },
   { t: 0.75, l: 0.76, c: 0.17, h: 420 },
   { t: 1, l: 0.93, c: 0.16, h: 455 },
