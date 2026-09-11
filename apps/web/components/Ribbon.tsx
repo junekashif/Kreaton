@@ -44,6 +44,7 @@ const Y_TICKS: Array<[number, string]> = [
   [0.1, '10%'],
   [0.5, '50%'],
   [0.9, '90%'],
+  [0.99, '99%'],
 ];
 
 const PAD = { top: 10, right: 14, bottom: 26, left: 46 };
@@ -68,7 +69,10 @@ export function Ribbon({
 }: Props) {
   const [ref, size] = useSize<HTMLDivElement>();
   const width = Math.max(size.width, 320);
-  const height = 300;
+  /* Tall enough that the 15 log-odds units of the axis get about 25px each.
+     At 300px the band where nearly every payment lives was a smear, and the
+     marks that matter most sat against the top edge. */
+  const height = 400;
   const innerW = width - PAD.left - PAD.right;
   const innerH = height - PAD.top - PAD.bottom;
 

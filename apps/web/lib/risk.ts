@@ -31,8 +31,13 @@ const STOPS: readonly Stop[] = [
   { t: 1, l: 0.93, c: 0.16, h: 455 },
 ];
 
+/* The display axis in log-odds. The top of the axis is deliberately above
+   the highest probability the calibration can produce (its last isotonic
+   step sits just under 98%, log-odds 4): a mark for the sharpest scam should
+   sit clearly inside the plot, not against its top border, where it reads as
+   having fallen off the chart. 6 is 99.75%, which leaves that headroom. */
 export const LOGIT_MIN = -9;
-export const LOGIT_MAX = 4;
+export const LOGIT_MAX = 6;
 
 export function logit(p: number): number {
   const q = Math.min(Math.max(p, 1e-9), 1 - 1e-9);

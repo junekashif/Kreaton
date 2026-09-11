@@ -26,6 +26,7 @@ const Y_TICKS: Array<[number, string]> = [
   [0.1, '10%'],
   [0.5, '50%'],
   [0.9, '90%'],
+  [0.99, '99%'],
 ];
 const PAD = { top: 10, right: 12, bottom: 24, left: 46 };
 
