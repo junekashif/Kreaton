@@ -65,8 +65,16 @@ jobs:
           NEXT_TELEMETRY_DISABLED: 1
       - name: Deploy prebuilt output
         id: deploy
+        # The CLI prints a JSON object here, not a bare URL, and a multi-line
+        # value cannot be written to $GITHUB_OUTPUT with a plain echo -- the
+        # output silently ends up empty and every later step addresses
+        # nothing. Pull the first deployment host out of whatever was printed,
+        # which holds for both the JSON and the older bare-URL output, and
+        # fail the step if nothing matched rather than deploying blind.
         run: |
-          url=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
+          vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }} | tee deploy.out
+          url=$(grep -Eo 'https://[A-Za-z0-9.-]+\.vercel\.app' deploy.out | head -n 1)
+          test -n "$url"
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Deployed $url"
       - name: Smoke test
