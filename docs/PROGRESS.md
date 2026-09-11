@@ -9,7 +9,7 @@ decisions. Delete it before submission.
 
 ---
 
-## Status: feature complete, uncommitted until this session's commit
+## Status: feature complete, committed as 0e3a959 on `main`
 
 Everything in the original scope is built and verified locally:
 
@@ -77,10 +77,13 @@ python analysis/sensitivity.py
 
 ## Open items
 
+- **GitHub:** a clean clone (branch `main`, no remote) was placed at
+  `C:/Users/kakas/OneDrive/Desktop/Github Uploads/Kreaton` for publishing through GitHub
+  Desktop. Once published, add the URL as `origin` on `C:/D/Kreaton` so future pushes come
+  from the working copy.
 - **Vercel project and secrets** are not set up: create the project with Root Directory
   `apps/web`, then add `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` to the repo.
-  `deploy.yml` will run on the first push to `main`. The repo's current branch is `master`;
-  both are listed in the workflow triggers.
+  `deploy.yml` will fail on every push until then; `ci.yml` should pass.
 - **PaySim** has not been run on real data (no Kaggle download in this environment). The
   adapter's code path was smoke-tested with a throwaway file in PaySim's format, which was
   deleted. Results on the real file should go in `data/paysim-metrics.json` and be mentioned in
