@@ -74,8 +74,15 @@ jobs:
         # protection gates that URL even for a production deployment: the
         # production domain is public, the generated one is not. `vercel curl`
         # carries the token through, so this reads the health route rather
-        # than a login page. Anything that is not the expected JSON -- an
-        # error body, an HTML interstitial -- fails the parse and the job.
+        # than a login page.
+        #
+        # The URL goes in as the positional argument, with the path appended.
+        # Passing a full URL to --deployment alongside a path builds a
+        # malformed URL and curl rejects it before any request is made.
+        # Flags after -- go to curl itself: --fail turns an HTTP error into a
+        # non-zero exit, and --silent keeps the progress meter out of the
+        # body. Anything that is not the expected JSON -- an error body, an
+        # HTML interstitial -- fails the parse and the job.
         run: |
-          vercel curl /api/v1/health --deployment "${{ steps.deploy.outputs.url }}" --yes --token=${{ secrets.VERCEL_TOKEN }} | tee health.json
+          vercel curl "${{ steps.deploy.outputs.url }}/api/v1/health" --yes --token=${{ secrets.VERCEL_TOKEN }} -- --fail --silent --show-error | tee health.json
           node -e "const h=require('./health.json'); if(!h.ok) process.exit(1)"
