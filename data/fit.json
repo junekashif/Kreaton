@@ -1,0 +1,156 @@
+{
+  "generatedAt": "2026-09-11T13:59:48.623Z",
+  "config": {
+    "seed": "kreaton-2026",
+    "payers": 4000,
+    "days": 60,
+    "fraudRate": 0.003,
+    "startMs": 1780272000000,
+    "merchants": 700,
+    "muleChains": 60,
+    "mulesPerChain": 4
+  },
+  "modelVersion": "1.0.0-kreaton-2026-4000x60",
+  "corpus": {
+    "config": {
+      "seed": "kreaton-2026",
+      "payers": 4000,
+      "days": 60,
+      "fraudRate": 0.003,
+      "startMs": 1780272000000,
+      "merchants": 700,
+      "muleChains": 60,
+      "mulesPerChain": 4
+    },
+    "generatedAt": "2026-09-11T13:57:26.693Z",
+    "totalTransactions": 478090,
+    "fraudulentTransactions": 1434,
+    "observedFraudRate": 0.0029994352527766737,
+    "totalValuePaise": 149968101231,
+    "fraudValuePaise": 14886583342,
+    "byTypology": {
+      "purchase_marketplace": {
+        "count": 43,
+        "valuePaise": 37505007
+      },
+      "investment_trading": {
+        "count": 424,
+        "valuePaise": 7183905394
+      },
+      "digital_arrest": {
+        "count": 133,
+        "valuePaise": 4414601570
+      },
+      "kyc_update": {
+        "count": 108,
+        "valuePaise": 494289308
+      },
+      "romance": {
+        "count": 108,
+        "valuePaise": 1194747730
+      },
+      "impersonation_known_person": {
+        "count": 40,
+        "valuePaise": 103361274
+      },
+      "job_task": {
+        "count": 489,
+        "valuePaise": 1247391190
+      },
+      "refund_reversal": {
+        "count": 89,
+        "valuePaise": 210781869
+      }
+    }
+  },
+  "split": {
+    "splitAtMs": 1783384912484,
+    "trainRows": 286854,
+    "testRows": 191236
+  },
+  "diagnostics": {
+    "groupCorrelation": {
+      "identity_device": 0,
+      "behavioural": 0.1047207567118749,
+      "payee_graph": 0.055705610367525034,
+      "context": 0.00629775388639438,
+      "structuring": 0
+    },
+    "weights": {
+      "PAYEE_NOVELTY": 0.7790282573424258,
+      "AMOUNT_DEVIATION": 1.1602188683903718,
+      "TEMPORAL_ANOMALY": 1.072089872300292,
+      "DEVICE_DRIFT": 0.9724288631890677,
+      "PAYEE_FAN_IN": 1.2528779969730957,
+      "PAYEE_ACCOUNT_AGE": 0.8789867220100487,
+      "CALL_CONCURRENCY": 0.9078081664925478,
+      "SESSION_URGENCY": 0.8306702889798101,
+      "STRUCTURING": 0.5902503655455914,
+      "VELOCITY_BURST": 0.8264057642624126,
+      "DRAIN_RATIO": 0.13489280548716992,
+      "MULE_PROXIMITY": 1.2374151734614964
+    },
+    "irlsIterations": 6,
+    "irlsConverged": true,
+    "trainRows": 286854,
+    "trainFraud": 421,
+    "filledBins": [
+      {
+        "signal": "TEMPORAL_ANOMALY",
+        "bin": 0
+      },
+      {
+        "signal": "DEVICE_DRIFT",
+        "bin": 1
+      },
+      {
+        "signal": "PAYEE_FAN_IN",
+        "bin": 6
+      },
+      {
+        "signal": "PAYEE_FAN_IN",
+        "bin": 7
+      },
+      {
+        "signal": "STRUCTURING",
+        "bin": 5
+      },
+      {
+        "signal": "VELOCITY_BURST",
+        "bin": 6
+      },
+      {
+        "signal": "MULE_PROXIMITY",
+        "bin": 2
+      },
+      {
+        "signal": "MULE_PROXIMITY",
+        "bin": 3
+      }
+    ],
+    "marginalAuc": {
+      "PAYEE_NOVELTY": 0.934588872594533,
+      "AMOUNT_DEVIATION": 0.9464494233995089,
+      "TEMPORAL_ANOMALY": 0.5203050143791591,
+      "DEVICE_DRIFT": 0.5170700986220781,
+      "PAYEE_FAN_IN": 0.7852395706667322,
+      "PAYEE_ACCOUNT_AGE": 0.667894566868805,
+      "CALL_CONCURRENCY": 0.6816251886087104,
+      "SESSION_URGENCY": 0.8154310590699182,
+      "STRUCTURING": 0.7593244913842199,
+      "VELOCITY_BURST": 0.7972215303865912,
+      "DRAIN_RATIO": 0.8672511681216423,
+      "MULE_PROXIMITY": 0.5932872655478776
+    }
+  },
+  "metrics": {
+    "rocAuc": 0.9959889027010378,
+    "prAuc": 0.8895297106576653,
+    "ks": 0.9493122165511161,
+    "brier": 0.0017884448787617848,
+    "ece": 0.0019127186368222515,
+    "recallAt1PctFpr": 0.9338598223099703,
+    "trainRows": 286854,
+    "testRows": 191236
+  }
+}

@@ -1,0 +1,585 @@
+{
+  "generatedAt": "2026-09-11T14:04:18.629Z",
+  "config": {
+    "seed": "kreaton-2026",
+    "payers": 4000,
+    "days": 60,
+    "fraudRate": 0.003,
+    "startMs": 1780272000000,
+    "merchants": 700,
+    "muleChains": 60,
+    "mulesPerChain": 4
+  },
+  "modelVersion": "1.0.0-kreaton-2026-4000x60",
+  "corpus": {
+    "config": {
+      "seed": "kreaton-2026",
+      "payers": 4000,
+      "days": 60,
+      "fraudRate": 0.003,
+      "startMs": 1780272000000,
+      "merchants": 700,
+      "muleChains": 60,
+      "mulesPerChain": 4
+    },
+    "generatedAt": "2026-09-11T13:59:55.037Z",
+    "totalTransactions": 478090,
+    "fraudulentTransactions": 1434,
+    "observedFraudRate": 0.0029994352527766737,
+    "totalValuePaise": 149968101231,
+    "fraudValuePaise": 14886583342,
+    "byTypology": {
+      "purchase_marketplace": {
+        "count": 43,
+        "valuePaise": 37505007
+      },
+      "investment_trading": {
+        "count": 424,
+        "valuePaise": 7183905394
+      },
+      "digital_arrest": {
+        "count": 133,
+        "valuePaise": 4414601570
+      },
+      "kyc_update": {
+        "count": 108,
+        "valuePaise": 494289308
+      },
+      "romance": {
+        "count": 108,
+        "valuePaise": 1194747730
+      },
+      "impersonation_known_person": {
+        "count": 40,
+        "valuePaise": 103361274
+      },
+      "job_task": {
+        "count": 489,
+        "valuePaise": 1247391190
+      },
+      "refund_reversal": {
+        "count": 89,
+        "valuePaise": 210781869
+      }
+    }
+  },
+  "split": {
+    "splitAtMs": 1783384912484,
+    "trainRows": 286854,
+    "testRows": 191236
+  },
+  "heldOut": {
+    "discrimination": {
+      "rocAuc": 0.9959889027010378,
+      "prAuc": 0.8895297106576653,
+      "ks": 0.9493122165511161,
+      "ksAtScore": 0.0012928584601762582,
+      "positives": 1013,
+      "negatives": 190223
+    },
+    "calibration": {
+      "brier": 0.0017884448787408684,
+      "ece": 0.001912719239679454,
+      "mce": 0.022422706234228547,
+      "bins": [
+        {
+          "lo": 1e-9,
+          "hi": 1e-9,
+          "count": 15937,
+          "meanPredicted": 1.0000000000001173e-9,
+          "observedRate": 0
+        },
+        {
+          "lo": 1e-9,
+          "hi": 1e-9,
+          "count": 15937,
+          "meanPredicted": 1.0000000000001173e-9,
+          "observedRate": 0
+        },
+        {
+          "lo": 1e-9,
+          "hi": 1e-9,
+          "count": 15937,
+          "meanPredicted": 1.0000000000001173e-9,
+          "observedRate": 0
+        },
+        {
+          "lo": 1e-9,
+          "hi": 1e-9,
+          "count": 15937,
+          "meanPredicted": 1.0000000000001173e-9,
+          "observedRate": 0
+        },
+        {
+          "lo": 1e-9,
+          "hi": 1e-9,
+          "count": 15937,
+          "meanPredicted": 1.0000000000001173e-9,
+          "observedRate": 0
+        },
+        {
+          "lo": 1e-9,
+          "hi": 1e-9,
+          "count": 15937,
+          "meanPredicted": 1.0000000000001173e-9,
+          "observedRate": 0
+        },
+        {
+          "lo": 1e-9,
+          "hi": 1e-9,
+          "count": 15937,
+          "meanPredicted": 1.0000000000001173e-9,
+          "observedRate": 0
+        },
+        {
+          "lo": 1e-9,
+          "hi": 1e-9,
+          "count": 15937,
+          "meanPredicted": 1.0000000000001173e-9,
+          "observedRate": 0
+        },
+        {
+          "lo": 1e-9,
+          "hi": 0.000007870944515117857,
+          "count": 15937,
+          "meanPredicted": 8.661057227137319e-7,
+          "observedRate": 0.00012549413314927527
+        },
+        {
+          "lo": 0.000007873860970349379,
+          "hi": 0.00003960222001936474,
+          "count": 15937,
+          "meanPredicted": 0.000024988338300199227,
+          "observedRate": 0.00012549413314927527
+        },
+        {
+          "lo": 0.00003960509496346438,
+          "hi": 0.00011281089553643166,
+          "count": 15937,
+          "meanPredicted": 0.00006140404764342796,
+          "observedRate": 0.0003764823994478258
+        },
+        {
+          "lo": 0.00011283635492024261,
+          "hi": 0.999999999,
+          "count": 15929,
+          "meanPredicted": 0.04054420945413858,
+          "observedRate": 0.06296691568836713
+        }
+      ]
+    },
+    "operatingPoints": [
+      {
+        "maxFpr": 0.001,
+        "point": {
+          "threshold": 0.019304681884345115,
+          "truePositives": 834,
+          "falsePositives": 191,
+          "trueNegatives": 190032,
+          "falseNegatives": 179,
+          "precision": 0.8136585365853658,
+          "recall": 0.8232971372161896,
+          "falsePositiveRate": 0.0010040846795603055,
+          "recallInterval": {
+            "lo": 0.7986000524450289,
+            "hi": 0.8455514063465863,
+            "point": 0.8232971372161896
+          }
+        },
+        "valueRecall": 0.8564782236026831
+      },
+      {
+        "maxFpr": 0.005,
+        "point": {
+          "threshold": 0.005450376741856248,
+          "truePositives": 919,
+          "falsePositives": 952,
+          "trueNegatives": 189271,
+          "falseNegatives": 94,
+          "precision": 0.4911811865312667,
+          "recall": 0.9072063178677197,
+          "falsePositiveRate": 0.005004652434248224,
+          "recallInterval": {
+            "lo": 0.8877679630353803,
+            "hi": 0.9235678438395548,
+            "point": 0.9072063178677197
+          }
+        },
+        "valueRecall": 0.9384317925312579
+      },
+      {
+        "maxFpr": 0.01,
+        "point": {
+          "threshold": 0.002403103694667255,
+          "truePositives": 946,
+          "falsePositives": 1903,
+          "trueNegatives": 188320,
+          "falseNegatives": 67,
+          "precision": 0.33204633204633205,
+          "recall": 0.9338598223099703,
+          "falsePositiveRate": 0.010004047880645349,
+          "recallInterval": {
+            "lo": 0.9168572598244678,
+            "hi": 0.9475841635004629,
+            "point": 0.9338598223099703
+          }
+        },
+        "valueRecall": 0.9546721947483177
+      },
+      {
+        "maxFpr": 0.02,
+        "point": {
+          "threshold": 0.0017094858762071517,
+          "truePositives": 976,
+          "falsePositives": 3807,
+          "trueNegatives": 186416,
+          "falseNegatives": 37,
+          "precision": 0.20405603177921808,
+          "recall": 0.9634748272458046,
+          "falsePositiveRate": 0.020013352749141795,
+          "recallInterval": {
+            "lo": 0.9500612015073905,
+            "hi": 0.9733864623175357,
+            "point": 0.9634748272458046
+          }
+        },
+        "valueRecall": 0.9777609690275216
+      },
+      {
+        "maxFpr": 0.05,
+        "point": {
+          "threshold": 0.00015738422087807337,
+          "truePositives": 1000,
+          "falsePositives": 9512,
+          "trueNegatives": 180711,
+          "falseNegatives": 13,
+          "precision": 0.09512937595129375,
+          "recall": 0.9871668311944719,
+          "falsePositiveRate": 0.05000446843967343,
+          "recallInterval": {
+            "lo": 0.9781675139463668,
+            "hi": 0.9924851422785556,
+            "point": 0.9871668311944719
+          }
+        },
+        "valueRecall": 0.9957712960851254
+      }
+    ],
+    "deciles": [
+      {
+        "decile": 1,
+        "count": 19124,
+        "fraudCount": 1006,
+        "fraudRate": 0.05260405772850868,
+        "lift": 9.930690605892485,
+        "capturedShare": 0.9930898321816387
+      },
+      {
+        "decile": 2,
+        "count": 19124,
+        "fraudCount": 5,
+        "fraudRate": 0.00026145157916753815,
+        "lift": 0.04935730917441592,
+        "capturedShare": 0.004935834155972359
+      },
+      {
+        "decile": 3,
+        "count": 19124,
+        "fraudCount": 0,
+        "fraudRate": 0,
+        "lift": 0,
+        "capturedShare": 0
+      },
+      {
+        "decile": 4,
+        "count": 19124,
+        "fraudCount": 0,
+        "fraudRate": 0,
+        "lift": 0,
+        "capturedShare": 0
+      },
+      {
+        "decile": 5,
+        "count": 19124,
+        "fraudCount": 0,
+        "fraudRate": 0,
+        "lift": 0,
+        "capturedShare": 0
+      },
+      {
+        "decile": 6,
+        "count": 19124,
+        "fraudCount": 0,
+        "fraudRate": 0,
+        "lift": 0,
+        "capturedShare": 0
+      },
+      {
+        "decile": 7,
+        "count": 19124,
+        "fraudCount": 0,
+        "fraudRate": 0,
+        "lift": 0,
+        "capturedShare": 0
+      },
+      {
+        "decile": 8,
+        "count": 19124,
+        "fraudCount": 0,
+        "fraudRate": 0,
+        "lift": 0,
+        "capturedShare": 0
+      },
+      {
+        "decile": 9,
+        "count": 19124,
+        "fraudCount": 0,
+        "fraudRate": 0,
+        "lift": 0,
+        "capturedShare": 0
+      },
+      {
+        "decile": 10,
+        "count": 19120,
+        "fraudCount": 2,
+        "fraudRate": 0.00010460251046025104,
+        "lift": 0.019747053988525734,
+        "capturedShare": 0.0019743336623889436
+      }
+    ]
+  },
+  "recovery": {
+    "atReportLag": 0.06070400000036682,
+    "quantiles": {
+      "p10": 8.535187054883137,
+      "p50": 81.60923738342927,
+      "p90": 494.28654990077257
+    },
+    "estimatorGap": {
+      "maxAbsDiff": 0.10184628775199162,
+      "atMinutes": 10
+    },
+    "curve": [
+      {
+        "minutes": 0,
+        "recoverable": 0.5894280000003667
+      },
+      {
+        "minutes": 1,
+        "recoverable": 0.5781025000003667
+      },
+      {
+        "minutes": 2,
+        "recoverable": 0.5675150000003667
+      },
+      {
+        "minutes": 5,
+        "recoverable": 0.5373225000003666
+      },
+      {
+        "minutes": 10,
+        "recoverable": 0.4932380000003668
+      },
+      {
+        "minutes": 15,
+        "recoverable": 0.4527465000003668
+      },
+      {
+        "minutes": 20,
+        "recoverable": 0.4186295000003668
+      },
+      {
+        "minutes": 30,
+        "recoverable": 0.3638285000003669
+      },
+      {
+        "minutes": 45,
+        "recoverable": 0.29845900000036685
+      },
+      {
+        "minutes": 60,
+        "recoverable": 0.25134250000036684
+      },
+      {
+        "minutes": 90,
+        "recoverable": 0.1856810000003668
+      },
+      {
+        "minutes": 120,
+        "recoverable": 0.14201650000036684
+      },
+      {
+        "minutes": 180,
+        "recoverable": 0.08912950000036682
+      },
+      {
+        "minutes": 240,
+        "recoverable": 0.06070400000036682
+      },
+      {
+        "minutes": 360,
+        "recoverable": 0.031556500000366805
+      },
+      {
+        "minutes": 480,
+        "recoverable": 0.018878000000366806
+      },
+      {
+        "minutes": 720,
+        "recoverable": 0.007751000000366824
+      },
+      {
+        "minutes": 1080,
+        "recoverable": 0.0029050000003668455
+      },
+      {
+        "minutes": 1440,
+        "recoverable": 0.001296000000366858
+      }
+    ]
+  },
+  "portfolio": {
+    "generatedAt": "2026-09-11T14:03:26.048Z",
+    "windowFromMs": 1783384912484,
+    "windowToMs": 1785455971971,
+    "screened": {
+      "count": 191236,
+      "valuePaise": 64037344181
+    },
+    "byAction": {
+      "APPROVE": {
+        "count": 190140,
+        "valuePaise": 50825632648
+      },
+      "STEP_UP": {
+        "count": 337,
+        "valuePaise": 3771609886
+      },
+      "BLOCK": {
+        "count": 759,
+        "valuePaise": 9440101647
+      }
+    },
+    "truth": {
+      "fraudCount": 1013,
+      "fraudValuePaise": 10169733532,
+      "legitimateCount": 190223,
+      "legitimateValuePaise": 53867610649
+    },
+    "outcomes": {
+      "truePositives": 820,
+      "falsePositives": 276,
+      "trueNegatives": 189947,
+      "falseNegatives": 193,
+      "falsePositiveRate": 0.001450928646903897,
+      "frictionPerThousand": 5.731138488569098,
+      "detectionRate": 0.8094768015794669,
+      "valueDetectionRate": 0.9570465316888108,
+      "precision": 0.7481751824817519
+    },
+    "holds": {
+      "opened": 337,
+      "byState": {
+        "SOFT_HOLD": 0,
+        "CHALLENGE_ISSUED": 0,
+        "CONFIRMED_RELEASED": 261,
+        "FAILED_BLOCKED": 70,
+        "EXPIRED_BLOCKED": 0,
+        "ESCALATED_REVIEW": 0,
+        "ABANDONED": 6
+      },
+      "releasedValuePaise": 3155323889,
+      "stoppedValuePaise": 616285997,
+      "medianHoldMinutes": 1
+    },
+    "financial": {
+      "liabilityAvoidedPaise": 8897409024,
+      "residualLiabilityPaise": 654981010,
+      "frictionCostPaise": 33130500,
+      "netBenefitPaise": 8864278524,
+      "unmitigatedLiabilityPaise": 9552390034
+    },
+    "byTypology": [
+      {
+        "typology": "investment_trading",
+        "count": 289,
+        "valuePaise": 4993734785,
+        "interveneCount": 266,
+        "interveneValuePaise": 4930751809,
+        "detectionRate": 0.9204152249134948,
+        "valueDetectionRate": 0.9873876009216216
+      },
+      {
+        "typology": "digital_arrest",
+        "count": 83,
+        "valuePaise": 2724140815,
+        "interveneCount": 76,
+        "interveneValuePaise": 2658428633,
+        "detectionRate": 0.9156626506024096,
+        "valueDetectionRate": 0.9758778321450318
+      },
+      {
+        "typology": "romance",
+        "count": 89,
+        "valuePaise": 975701824,
+        "interveneCount": 70,
+        "interveneValuePaise": 855048415,
+        "detectionRate": 0.7865168539325843,
+        "valueDetectionRate": 0.8763419253380427
+      },
+      {
+        "typology": "job_task",
+        "count": 365,
+        "valuePaise": 930938865,
+        "interveneCount": 285,
+        "interveneValuePaise": 846401706,
+        "detectionRate": 0.7808219178082192,
+        "valueDetectionRate": 0.9091915031391454
+      },
+      {
+        "typology": "kyc_update",
+        "count": 70,
+        "valuePaise": 319729293,
+        "interveneCount": 55,
+        "interveneValuePaise": 269292952,
+        "detectionRate": 0.7857142857142857,
+        "valueDetectionRate": 0.8422529868103139
+      },
+      {
+        "typology": "refund_reversal",
+        "count": 64,
+        "valuePaise": 138719389,
+        "interveneCount": 54,
+        "interveneValuePaise": 123414446,
+        "detectionRate": 0.84375,
+        "valueDetectionRate": 0.8896697634676001
+      },
+      {
+        "typology": "impersonation_known_person",
+        "count": 29,
+        "valuePaise": 70878130,
+        "interveneCount": 10,
+        "interveneValuePaise": 48023341,
+        "detectionRate": 0.3448275862068966,
+        "valueDetectionRate": 0.6775480814744972
+      },
+      {
+        "typology": "purchase_marketplace",
+        "count": 24,
+        "valuePaise": 15890431,
+        "interveneCount": 4,
+        "interveneValuePaise": 1546903,
+        "detectionRate": 0.16666666666666666,
+        "valueDetectionRate": 0.09734808325840878
+      }
+    ],
+    "latency": {
+      "meanMs": 0.03925197243200453,
+      "p50Ms": 0.033699999999953434,
+      "p95Ms": 0.07179999999061693,
+      "p99Ms": 0.11770000000251457,
+      "maxMs": 6.897599999996601
+    }
+  },
+  "auditChainValid": true
+}

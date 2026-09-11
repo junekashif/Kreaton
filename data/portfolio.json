@@ -1,0 +1,143 @@
+{
+  "generatedAt": "2026-09-11T14:03:26.048Z",
+  "windowFromMs": 1783384912484,
+  "windowToMs": 1785455971971,
+  "screened": {
+    "count": 191236,
+    "valuePaise": 64037344181
+  },
+  "byAction": {
+    "APPROVE": {
+      "count": 190140,
+      "valuePaise": 50825632648
+    },
+    "STEP_UP": {
+      "count": 337,
+      "valuePaise": 3771609886
+    },
+    "BLOCK": {
+      "count": 759,
+      "valuePaise": 9440101647
+    }
+  },
+  "truth": {
+    "fraudCount": 1013,
+    "fraudValuePaise": 10169733532,
+    "legitimateCount": 190223,
+    "legitimateValuePaise": 53867610649
+  },
+  "outcomes": {
+    "truePositives": 820,
+    "falsePositives": 276,
+    "trueNegatives": 189947,
+    "falseNegatives": 193,
+    "falsePositiveRate": 0.001450928646903897,
+    "frictionPerThousand": 5.731138488569098,
+    "detectionRate": 0.8094768015794669,
+    "valueDetectionRate": 0.9570465316888108,
+    "precision": 0.7481751824817519
+  },
+  "holds": {
+    "opened": 337,
+    "byState": {
+      "SOFT_HOLD": 0,
+      "CHALLENGE_ISSUED": 0,
+      "CONFIRMED_RELEASED": 261,
+      "FAILED_BLOCKED": 70,
+      "EXPIRED_BLOCKED": 0,
+      "ESCALATED_REVIEW": 0,
+      "ABANDONED": 6
+    },
+    "releasedValuePaise": 3155323889,
+    "stoppedValuePaise": 616285997,
+    "medianHoldMinutes": 1
+  },
+  "financial": {
+    "liabilityAvoidedPaise": 8897409024,
+    "residualLiabilityPaise": 654981010,
+    "frictionCostPaise": 33130500,
+    "netBenefitPaise": 8864278524,
+    "unmitigatedLiabilityPaise": 9552390034
+  },
+  "byTypology": [
+    {
+      "typology": "investment_trading",
+      "count": 289,
+      "valuePaise": 4993734785,
+      "interveneCount": 266,
+      "interveneValuePaise": 4930751809,
+      "detectionRate": 0.9204152249134948,
+      "valueDetectionRate": 0.9873876009216216
+    },
+    {
+      "typology": "digital_arrest",
+      "count": 83,
+      "valuePaise": 2724140815,
+      "interveneCount": 76,
+      "interveneValuePaise": 2658428633,
+      "detectionRate": 0.9156626506024096,
+      "valueDetectionRate": 0.9758778321450318
+    },
+    {
+      "typology": "romance",
+      "count": 89,
+      "valuePaise": 975701824,
+      "interveneCount": 70,
+      "interveneValuePaise": 855048415,
+      "detectionRate": 0.7865168539325843,
+      "valueDetectionRate": 0.8763419253380427
+    },
+    {
+      "typology": "job_task",
+      "count": 365,
+      "valuePaise": 930938865,
+      "interveneCount": 285,
+      "interveneValuePaise": 846401706,
+      "detectionRate": 0.7808219178082192,
+      "valueDetectionRate": 0.9091915031391454
+    },
+    {
+      "typology": "kyc_update",
+      "count": 70,
+      "valuePaise": 319729293,
+      "interveneCount": 55,
+      "interveneValuePaise": 269292952,
+      "detectionRate": 0.7857142857142857,
+      "valueDetectionRate": 0.8422529868103139
+    },
+    {
+      "typology": "refund_reversal",
+      "count": 64,
+      "valuePaise": 138719389,
+      "interveneCount": 54,
+      "interveneValuePaise": 123414446,
+      "detectionRate": 0.84375,
+      "valueDetectionRate": 0.8896697634676001
+    },
+    {
+      "typology": "impersonation_known_person",
+      "count": 29,
+      "valuePaise": 70878130,
+      "interveneCount": 10,
+      "interveneValuePaise": 48023341,
+      "detectionRate": 0.3448275862068966,
+      "valueDetectionRate": 0.6775480814744972
+    },
+    {
+      "typology": "purchase_marketplace",
+      "count": 24,
+      "valuePaise": 15890431,
+      "interveneCount": 4,
+      "interveneValuePaise": 1546903,
+      "detectionRate": 0.16666666666666666,
+      "valueDetectionRate": 0.09734808325840878
+    }
+  ],
+  "latency": {
+    "meanMs": 0.03925197243200453,
+    "p50Ms": 0.033699999999953434,
+    "p95Ms": 0.07179999999061693,
+    "p99Ms": 0.11770000000251457,
+    "maxMs": 6.897599999996601
+  }
+}

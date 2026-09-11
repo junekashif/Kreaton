@@ -1,0 +1,71 @@
+name: Deploy
+
+# Production deployment runs here, not through Vercel's own git integration,
+# which is disabled in apps/web/vercel.json. The build is produced by the
+# Vercel CLI inside this job and uploaded prebuilt, so what ships is exactly
+# what this workflow verified.
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+jobs:
+  verify:
+    name: Verify before deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build:packages
+      - run: npm run gate
+
+  deploy:
+    name: Build and deploy to production
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [verify]
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+      - name: Pull project settings
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+      - name: Build
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          NEXT_TELEMETRY_DISABLED: 1
+      - name: Deploy prebuilt output
+        id: deploy
+        run: |
+          url=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Deployed $url"
+      - name: Smoke test
+        run: |
+          curl --fail --silent --show-error "${{ steps.deploy.outputs.url }}/api/v1/health" | tee health.json
+          node -e "const h=require('./health.json'); if(!h.ok) process.exit(1)"

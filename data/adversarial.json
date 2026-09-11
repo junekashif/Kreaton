@@ -1,0 +1,389 @@
+{
+  "generatedAt": "2026-09-11T14:14:33.508Z",
+  "modelVersion": "1.0.0-kreaton-2026-4000x60",
+  "episodesPerAttack": 400,
+  "policyPreset": {
+    "id": "balanced",
+    "label": "Balanced"
+  },
+  "policy": {
+    "liabilityShare": 1,
+    "stepUpCatchRate": 0.65,
+    "stepUpFrictionPaise": 3500,
+    "blockFrictionPaise": 25000,
+    "stepUpAbandonmentRate": 0.04,
+    "blockAbandonmentRate": 0.18,
+    "customerLifetimeValuePaise": 800000,
+    "reportLagMinutes": 240,
+    "holdWindowMinutes": 30,
+    "attemptBudget": 2,
+    "freezeLatencyMinutes": 20,
+    "maxStepUpRate": null,
+    "maxFalsePositiveRate": null
+  },
+  "defences": {
+    "rule_baseline": {
+      "label": "Tuned rule",
+      "description": "Intervene above a fixed amount, or above a lower amount when the beneficiary is new. Thresholds fitted to the same false-positive rate as the other systems. This is the shape of most controls actually in production.",
+      "falsePositiveRate": 0.0013668168412862799
+    },
+    "fixed_threshold": {
+      "label": "Fused score, single threshold",
+      "description": "The same twelve-signal fused and calibrated score, compared against one global probability threshold. Isolates what the score contributes from what the decision layer contributes.",
+      "falsePositiveRate": 0.001450928646903897
+    },
+    "expected_cost": {
+      "label": "Fused score, expected-cost boundary",
+      "description": "The full system. The same score, but the intervention boundary is derived per payment from expected compensation liability against expected friction, so it moves with the amount.",
+      "falsePositiveRate": 0.001450928646903897
+    }
+  },
+  "calibration": {
+    "referenceFpr": 0.001450928646903897,
+    "params": {
+      "ruleHighAmount": 25000000,
+      "ruleNewPayeeAmount": 10000000,
+      "ruleNoveltyHours": 24,
+      "fixedThreshold": 0.014243250086264515
+    },
+    "legitimateSampleSize": 190223
+  },
+  "results": [
+    {
+      "id": "structuring",
+      "label": "Threshold structuring",
+      "description": "The intended amount is split into several payments, each placed just below a monitored threshold, sent minutes apart to the same collection account.",
+      "premise": "A control that evaluates one payment at a time cannot see a total it never observes. Each individual payment is unremarkable in size.",
+      "countermeasure": "The structuring signal accumulates value across a trailing window and fires when the window crosses a threshold that no single payment crosses.",
+      "removedForComparison": [
+        "Threshold structuring"
+      ],
+      "episodes": 400,
+      "byDefence": {
+        "rule_baseline": {
+          "caught": 0,
+          "rate": 0,
+          "interval": {
+            "lo": 0,
+            "hi": 0.009512640599680667
+          },
+          "valueLeakedPaise": 5811839563,
+          "falsePositiveRate": 0.0013668168412862799
+        },
+        "fixed_threshold": {
+          "caught": 395,
+          "rate": 0.9875,
+          "interval": {
+            "lo": 0.971075847268862,
+            "hi": 0.9946493281464495
+          },
+          "valueLeakedPaise": 51729154,
+          "falsePositiveRate": 0.001450928646903897
+        },
+        "expected_cost": {
+          "caught": 396,
+          "rate": 0.99,
+          "interval": {
+            "lo": 0.9745730330055917,
+            "hi": 0.9961045792067211
+          },
+          "valueLeakedPaise": 46913652,
+          "falsePositiveRate": 0.001450928646903897
+        }
+      },
+      "ablation": {
+        "caughtHardened": 396,
+        "caughtAblated": 394,
+        "hardenedRate": 0.99,
+        "ablatedRate": 0.985,
+        "improvementPp": 0.5000000000000004,
+        "significant": false,
+        "valueLeakedHardenedPaise": 46913652,
+        "valueLeakedAblatedPaise": 56585014
+      }
+    },
+    {
+      "id": "baseline_building",
+      "label": "False baseline building",
+      "description": "Before the extraction, the attacker has the victim send a run of ordinary-looking payments to the collection account, including one deliberately large one, to shift the victim spending profile upward.",
+      "premise": "A behavioural baseline built from a mean and a standard deviation can be moved a long way by one large observation, after which the real extraction no longer looks anomalous.",
+      "countermeasure": "The amount baseline uses a median and a median absolute deviation, which have a fifty per cent breakdown point. Half the payment history would have to be poisoned before the estimate moves meaningfully.",
+      "removedForComparison": [
+        "Robust amount baseline (median and MAD)"
+      ],
+      "episodes": 400,
+      "byDefence": {
+        "rule_baseline": {
+          "caught": 45,
+          "rate": 0.1125,
+          "interval": {
+            "lo": 0.0851480200886654,
+            "hi": 0.14722427637608712
+          },
+          "valueLeakedPaise": 3128528726,
+          "falsePositiveRate": 0.0013668168412862799
+        },
+        "fixed_threshold": {
+          "caught": 326,
+          "rate": 0.815,
+          "interval": {
+            "lo": 0.774013423587264,
+            "hi": 0.8499936128349371
+          },
+          "valueLeakedPaise": 3509640043,
+          "falsePositiveRate": 0.001450928646903897
+        },
+        "expected_cost": {
+          "caught": 261,
+          "rate": 0.6525,
+          "interval": {
+            "lo": 0.604583891419141,
+            "hi": 0.6975147531979563
+          },
+          "valueLeakedPaise": 2372345850,
+          "falsePositiveRate": 0.001450928646903897
+        }
+      },
+      "ablation": {
+        "caughtHardened": 261,
+        "caughtAblated": 234,
+        "hardenedRate": 0.6525,
+        "ablatedRate": 0.585,
+        "improvementPp": 6.75,
+        "significant": false,
+        "valueLeakedHardenedPaise": 2372345850,
+        "valueLeakedAblatedPaise": 2497395110
+      }
+    },
+    {
+      "id": "delayed_extraction",
+      "label": "Delayed extraction",
+      "description": "The beneficiary is added and left dormant for several days before any payment is made, defeating first-time-beneficiary rules and cooling periods.",
+      "premise": "Controls keyed on beneficiary novelty expire. Waiting is free for the attacker and costs the victim nothing they will notice.",
+      "countermeasure": "Beneficiary fan-in weighted by onward velocity does not decay with the payer relationship. However long the attacker waits, the collection account is still receiving from unrelated people and still forwarding within the hour.",
+      "removedForComparison": [
+        "Unrelated inflow that leaves immediately"
+      ],
+      "episodes": 400,
+      "byDefence": {
+        "rule_baseline": {
+          "caught": 47,
+          "rate": 0.1175,
+          "interval": {
+            "lo": 0.08952149033047882,
+            "hi": 0.1527556797282769
+          },
+          "valueLeakedPaise": 1550801264,
+          "falsePositiveRate": 0.0013668168412862799
+        },
+        "fixed_threshold": {
+          "caught": 326,
+          "rate": 0.815,
+          "interval": {
+            "lo": 0.774013423587264,
+            "hi": 0.8499936128349371
+          },
+          "valueLeakedPaise": 140580704,
+          "falsePositiveRate": 0.001450928646903897
+        },
+        "expected_cost": {
+          "caught": 253,
+          "rate": 0.6325,
+          "interval": {
+            "lo": 0.5841997778817277,
+            "hi": 0.6782793723593568
+          },
+          "valueLeakedPaise": 222352967,
+          "falsePositiveRate": 0.001450928646903897
+        }
+      },
+      "ablation": {
+        "caughtHardened": 253,
+        "caughtAblated": 225,
+        "hardenedRate": 0.6325,
+        "ablatedRate": 0.5625,
+        "improvementPp": 6.999999999999995,
+        "significant": false,
+        "valueLeakedHardenedPaise": 222352967,
+        "valueLeakedAblatedPaise": 201297564
+      }
+    },
+    {
+      "id": "context_hygiene",
+      "label": "Context suppression",
+      "description": "The script is changed so the victim ends the call before authorising, closes the messaging app, avoids screen sharing, and is told to take their time and select the payee from their saved contacts.",
+      "premise": "Every contextual indicator of coercion is under the attacker control. If the model rests on them, instructing the victim differently defeats it at no cost.",
+      "countermeasure": "Negative evidence from attacker-controllable signals is floored. A quiet session still counts in the payer favour, but it can no longer argue a payment down by a factor of a hundred simply because the script told the victim to hang up first. Presence of a coercion indicator is still counted in full.",
+      "removedForComparison": [
+        "Asymmetric cap on attacker-controllable evidence"
+      ],
+      "episodes": 400,
+      "byDefence": {
+        "rule_baseline": {
+          "caught": 43,
+          "rate": 0.1075,
+          "interval": {
+            "lo": 0.08079329401678036,
+            "hi": 0.14167412885396896
+          },
+          "valueLeakedPaise": 1590033758,
+          "falsePositiveRate": 0.0013668168412862799
+        },
+        "fixed_threshold": {
+          "caught": 62,
+          "rate": 0.155,
+          "interval": {
+            "lo": 0.12283205544731421,
+            "hi": 0.19373166656646545
+          },
+          "valueLeakedPaise": 3248384149,
+          "falsePositiveRate": 0.001450928646903897
+        },
+        "expected_cost": {
+          "caught": 100,
+          "rate": 0.25,
+          "interval": {
+            "lo": 0.21007832849376823,
+            "hi": 0.2946779918060721
+          },
+          "valueLeakedPaise": 1643032589,
+          "falsePositiveRate": 0.001450928646903897
+        }
+      },
+      "ablation": {
+        "caughtHardened": 100,
+        "caughtAblated": 100,
+        "hardenedRate": 0.25,
+        "ablatedRate": 0.25,
+        "improvementPp": 0,
+        "significant": false,
+        "valueLeakedHardenedPaise": 1643032589,
+        "valueLeakedAblatedPaise": 1643032589
+      }
+    },
+    {
+      "id": "threshold_probing",
+      "label": "Threshold probing",
+      "description": "The attacker sends a sequence of small test payments of increasing value to locate the amount at which the system starts to intervene, then extracts just below it.",
+      "premise": "A fixed score threshold can be mapped from outside with a handful of cheap probes, after which the attacker operates permanently beneath it.",
+      "countermeasure": "The decision boundary is derived from expected cost and therefore moves with the amount, the beneficiary and the policy. There is no single number to find, and the probing sequence itself raises the velocity and structuring signals.",
+      "removedForComparison": [
+        "Velocity against personal baseline",
+        "Threshold structuring"
+      ],
+      "episodes": 400,
+      "byDefence": {
+        "rule_baseline": {
+          "caught": 100,
+          "rate": 0.25,
+          "interval": {
+            "lo": 0.21007832849376823,
+            "hi": 0.2946779918060721
+          },
+          "valueLeakedPaise": 4650758253,
+          "falsePositiveRate": 0.0013668168412862799
+        },
+        "fixed_threshold": {
+          "caught": 398,
+          "rate": 0.995,
+          "interval": {
+            "lo": 0.9819547100278873,
+            "hi": 0.9986277757784288
+          },
+          "valueLeakedPaise": 1044345839,
+          "falsePositiveRate": 0.001450928646903897
+        },
+        "expected_cost": {
+          "caught": 397,
+          "rate": 0.9925,
+          "interval": {
+            "lo": 0.9781838919722999,
+            "hi": 0.9974461570370148
+          },
+          "valueLeakedPaise": 948486831,
+          "falsePositiveRate": 0.001450928646903897
+        }
+      },
+      "ablation": {
+        "caughtHardened": 397,
+        "caughtAblated": 398,
+        "hardenedRate": 0.9925,
+        "ablatedRate": 0.995,
+        "improvementPp": -0.24999999999999467,
+        "significant": false,
+        "valueLeakedHardenedPaise": 948486831,
+        "valueLeakedAblatedPaise": 1039359106
+      }
+    },
+    {
+      "id": "mule_rotation",
+      "label": "Collection account rotation",
+      "description": "A previously unused collection account is used for every victim, so no beneficiary ever accumulates the fan-in or the reported-fraud history that would identify it.",
+      "premise": "Intelligence on known collection accounts is always retrospective. An account used once and discarded is never on any list at the moment it matters.",
+      "countermeasure": "Account age and onward velocity are properties of the account at the moment of payment and do not depend on it having been reported before. A freshly opened account that forwards everything within the hour is identifiable on the first use.",
+      "removedForComparison": [
+        "Graph proximity to a confirmed mule"
+      ],
+      "episodes": 400,
+      "byDefence": {
+        "rule_baseline": {
+          "caught": 80,
+          "rate": 0.2,
+          "interval": {
+            "lo": 0.1637364478713371,
+            "hi": 0.24197113648847135
+          },
+          "valueLeakedPaise": 746297109,
+          "falsePositiveRate": 0.0013668168412862799
+        },
+        "fixed_threshold": {
+          "caught": 394,
+          "rate": 0.985,
+          "interval": {
+            "lo": 0.9676649364884468,
+            "hi": 0.993107802129863
+          },
+          "valueLeakedPaise": 1395366,
+          "falsePositiveRate": 0.001450928646903897
+        },
+        "expected_cost": {
+          "caught": 365,
+          "rate": 0.9125,
+          "interval": {
+            "lo": 0.88073860783094,
+            "hi": 0.9364134636743234
+          },
+          "valueLeakedPaise": 7724612,
+          "falsePositiveRate": 0.001450928646903897
+        }
+      },
+      "ablation": {
+        "caughtHardened": 365,
+        "caughtAblated": 368,
+        "hardenedRate": 0.9125,
+        "ablatedRate": 0.92,
+        "improvementPp": -0.7500000000000062,
+        "significant": false,
+        "valueLeakedHardenedPaise": 7724612,
+        "valueLeakedAblatedPaise": 6636547
+      }
+    }
+  ],
+  "summary": {
+    "rule_baseline": {
+      "caught": 315,
+      "episodes": 2400,
+      "leaked": 17478258673
+    },
+    "fixed_threshold": {
+      "caught": 1901,
+      "episodes": 2400,
+      "leaked": 7996075255
+    },
+    "expected_cost": {
+      "caught": 1772,
+      "episodes": 2400,
+      "leaked": 5240856501
+    }
+  }
+}
