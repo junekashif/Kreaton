@@ -2,25 +2,36 @@
 
 **Project:** COGNITIA 2026, FINTECH-PS2 — real-time APP fraud interceptor and mule-chain tracer.
 **Author:** Team Kreaton.
-**Last updated:** 2026-09-11 (session 3).
+**Last updated:** 2026-09-12 (session 4).
 
 This file records where the build stands so work can resume without re-deriving
-decisions. Delete it before submission.
+decisions. It ships with the repository on purpose: the calibration bug in session 2 and
+the CI and deploy fixes in session 4 are the kind of thing a reader should be able to
+check rather than take on trust.
 
 ---
 
-## Status: feature complete, committed as 0e3a959 on `main`
+## Status: submitted, deployed, pipeline green
 
-Everything in the original scope is built and verified locally:
+| Where | What |
+| --- | --- |
+| Live console | **https://kreaton-upi.vercel.app** (public, production, no login) |
+| Submission repo | `Cognitia-IEM/KREATON` (private, org-owned; the hackathon's copy) |
+| Own repo | `junekashif/Kreaton` (public; this is the deploy source) |
+| Vercel project | `kreaton-upi` under team `voice-7c83`, id `prj_UdZKy2CDnv1rDpCOCcoFB0s6vp08`, Root Directory `apps/web`, Node 24.x |
+| CI | `ci.yml` and `deploy.yml` both pass on every push to `junekashif/Kreaton`; on the org copy the deploy job skips itself (no secrets there) and CI passes |
+| User manual | `C:/Users/kakas/OneDrive/Desktop/Kreaton-User-Manual.pdf`, 16 pages, A4; web copy at https://claude.ai/code/artifact/4e02496d-40e0-49f2-ad2f-8a67fef0cc1c |
+
+Everything in the original scope is built and verified:
 
 | Area | State |
 | --- | --- |
 | `packages/core` engine | complete, 46 tests pass, typechecks |
 | `packages/sim` | complete, plus `gate.ts`, `paysim.ts`, `modelcard.ts`, barrel `index.ts` |
-| `apps/web` console | complete: `/`, `/policy`, `/trace`, `/trace/[txnId]`, `/audit`, `/adversarial`, `/portfolio`, `/model`, `POST /api/v1/authorize`, `GET /api/v1/health`. Lint clean, `next build` clean |
-| `.github/workflows` | `ci.yml` (typecheck, lint, tests, gate, build) and `deploy.yml` (verify, `vercel build`, `vercel deploy --prebuilt --prod`, smoke test) |
+| `apps/web` console | complete: `/`, `/policy`, `/trace`, `/trace/[txnId]`, `/audit`, `/adversarial`, `/portfolio`, `/model`, `POST /api/v1/authorize`, `GET /api/v1/health`. Lint clean, `next build` clean, verified from a cold clone |
+| `.github/workflows` | `ci.yml` (typecheck, lint, tests, gate, build) and `deploy.yml` (preflight, verify, `vercel build`, `vercel deploy --prebuilt --prod`, authenticated smoke test) |
 | `analysis/` | `crosscheck.py` (10/10 checks pass against sklearn), `sensitivity.py` (writes `docs/SENSITIVITY.md`) |
-| Docs | `README.md`, `LICENSE` (MIT, Team Kreaton), `docs/MODELING.md`, `docs/MODEL_CARD.md` (generated), `docs/SENSITIVITY.md` (generated) |
+| Docs | `README.md` (links the live console), `LICENSE` (MIT, Team Kreaton), `docs/MODELING.md`, `docs/MODEL_CARD.md` (generated), `docs/SENSITIVITY.md` (generated) |
 | Artefacts | `data/{model,fit,metrics,portfolio,adversarial,adversarial-liability_first}.json`, `apps/web/public/data/{model,slice}.json` |
 
 ## Agreed stack decisions (unchanged)
@@ -34,7 +45,7 @@ Everything in the original scope is built and verified locally:
 | Data | Synthetic corpus primary; PaySim adapter for external cross-validation, degrades cleanly when the CSV is absent |
 | Authorship | "Team Kreaton" only. No assistant attribution anywhere, including commit trailers. `agentRules: false` in `next.config.ts` stops Next writing instruction files |
 
-## What changed this session that matters
+## Session 2: calibration fix and the corrected operating point
 
 1. **Calibration bug found and fixed** (`packages/sim/src/fit.ts`). PAVA never merged equal
    levels, so the step function kept every legitimate row as its own zero block; even-rank
@@ -103,6 +114,77 @@ timestamp can predate it, `t` went negative, the ease cubic returned values
 past 1, and each overshoot seeded the next animation -- counters diverged to
 about -1e69. Progress is clamped to [0, 1].
 
+## Session 4: deployment, submission, critique pass
+
+Everything below was verified by running it, not by reading it.
+
+1. **Deployed to Vercel.** Project created through the REST API with
+   `rootDirectory: apps/web` (the CLI has no flag for it). `vercel build` cannot run on
+   Windows: it creates symlinks under `.vercel/output` and the OS refuses without Developer
+   Mode, so the first deploy used `vercel deploy --prod` (remote build). The project was
+   renamed from `kreaton` (that `.vercel.app` name was taken; Vercel had assigned
+   `kreaton-two`) to `kreaton-upi`. A rename does not re-alias, so `kreaton-upi.vercel.app`
+   was added as a domain explicitly and `kreaton-two` removed.
+2. **CI had failed on every commit from the first one.** `app/layout.tsx` annotates the
+   root layout with `LayoutProps<'/'>`, a type Next generates into `.next/types`. Local
+   checks passed because `.next` was always lying around; a clean checkout has none.
+   `typecheck` is now `next typegen && tsc --noEmit`. Found only because the push was
+   watched.
+3. **The deploy smoke test needed three fixes**, each findable only by running it. The
+   earlier claim in these notes that it was correct before it ever ran was wrong.
+   - `vercel curl` takes the full URL as its positional argument; `--deployment <url>` plus
+     a path builds a malformed URL and curl rejects it before any request.
+   - `vercel deploy` prints a JSON object, not a bare URL. `url=$(vercel deploy ...)`
+     captured a multi-line blob that `$GITHUB_OUTPUT` silently dropped. The step now greps
+     the first deployment host out and fails if nothing matched.
+   - `vercel curl` forwards every flag it does not recognise to the curl binary, and
+     `--token` is one of them (`curl: option --token: is unknown`). Auth goes through
+     `VERCEL_TOKEN` in the step's environment. Every other step accepts `--token`, which is
+     why only this one broke.
+   Three CI-built deployments were READY on Vercel while the smoke test was still failing;
+   the deploy itself had worked from the moment the secrets landed.
+4. **The deploy job skips itself when `VERCEL_TOKEN` is absent.** A preflight job publishes
+   whether the secret is set (secrets cannot be tested in a job-level `if:` directly). This
+   keeps the org's copy green: it holds none of the secrets and was never meant to deploy.
+   Verified in both directions, a real deploy on `junekashif/Kreaton` and a skip on the org
+   copy.
+5. **Submitted.** The organisers had pre-created an empty private `Cognitia-IEM/KREATON`;
+   the full history was pushed into it (identical SHAs, single human author, no trailers).
+   The About box needs admin, which the team does not have; left for the organisers.
+6. **The risk chart's axis topped out at 98.2%**, and the calibration's last isotonic step
+   sits just under 98%, so the blocked scams sat 4px below the plot's top border and read as
+   having fallen off. Measured: nothing was actually clipped; all 1,200 marks were inside.
+   `LOGIT_MAX` 4 to 6 (99.75%), a labelled 99% tick, ribbon 300 to 400px. The same 97.8%
+   mark now sits 53px inside. `/policy`'s surface chart shares the axis through
+   `riskPosition` and picked up the same ticks.
+7. **A dual-agent design critique** (design review and mechanical detector, run isolated)
+   scored the console 26/40 on Nielsen's heuristics and found four things worth fixing
+   before a deadline. All four shipped in `94b146c`:
+   - The assessment panel is sticky beside the feed above 1100px; below that a row selection
+     scrolls it into view. Clicking the bottom row of a forty-row feed used to update a panel
+     414px above the viewport, and 505px away on a phone.
+   - `APP-FAN-1 5 distinct payers` read as `APP-FAN-15`. The reason code takes the data face
+     and a separator. The "Scam risk / p(fraud)" heading was also holding its column open at
+     141px for a sixty-pixel value; the sub-label sits on its own line now. A `min-width` on
+     the reason column that briefly forced the table sideways was caught in the screenshot
+     round and removed: the numbers said 260px, the render showed a scrollbar.
+   - `--fg-2` measured 4.08:1 on sixty-odd elements; it is L 0.59 now, 4.84:1 on the ground
+     and 4.62:1 on the raised plane the key sits on (0.58 would fail the second). `--fg-3`
+     went from 2.34:1 to 3.32:1.
+   - On a phone, panel headers wrap and a selected feed card paints as one surface.
+   Declined on purpose: drawing approvals as a density strip (a rework that changes what
+   the ribbon means); the detector's "cyan neon" hits (that is the approve teal, chosen
+   because green failed colourblind separation); collapsing the type scale.
+8. **The manual.** Written for someone who has never seen a fraud system; ten screenshots
+   from the live site. Chrome will not embed variable fonts into a PDF; it rasterises them
+   and falls back to Segoe UI. Newsreader and Instrument Sans are instanced to static
+   weights with fontTools for the print build. The rupee sign still falls to Segoe because
+   the Latin subsets lack U+20B9; harmless.
+9. **Fresh-clone check.** `git clone`, `npm ci`, typecheck, tests, `next build`, `next dev`
+   all clean from an empty folder. Node >= 20.9 is enforced by `engines` and is Next's real
+   minimum; the only platform-specific packages are esbuild's per-OS binaries, which npm
+   selects automatically.
+
 ## Resume checklist
 
 ```bash
@@ -119,28 +201,41 @@ python analysis/sensitivity.py
 
 ## Open items
 
-- **GitHub:** a clean clone (branch `main`, no remote) was placed at
-  `C:/Users/kakas/OneDrive/Desktop/Github Uploads/Kreaton` for publishing through GitHub
-  Desktop. Once published, add the URL as `origin` on `C:/D/Kreaton` so future pushes come
-  from the working copy.
-- **Vercel project and secrets** are not set up: create the project with Root Directory
-  `apps/web`, then add `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` to the repo.
-  `deploy.yml` will fail on every push until then; `ci.yml` should pass.
-  Two things in that workflow were corrected before it ever ran. The smoke test used a
-  plain `curl` against the URL `vercel deploy` prints, which is the unique deployment URL
-  rather than the production domain: deployment protection gates it, so the test would
-  have read a login page and failed every deploy. It now goes through `vercel curl`,
-  which carries the token (that subcommand is in beta; if it is ever withdrawn, the
-  alternatives are a `--protection-bypass` secret or testing the production domain
-  instead). The CLI is also pinned to `vercel@59.16.0` rather than `@latest`, so a CLI
-  release cannot change the production gate without a commit here.
+None block the submission.
+
 - **PaySim** has not been run on real data (no Kaggle download in this environment). The
   adapter's code path was smoke-tested with a throwaway file in PaySim's format, which was
   deleted. Results on the real file should go in `data/paysim-metrics.json` and be mentioned in
-  `MODELING.md` §2.4 once available.
+  `MODELING.md` section 2.4 once available.
+- **The org repo's About box** (description, website link) needs admin, which the team does
+  not have. Ask the organisers to set it or grant admin. The README carries the same
+  information, so nothing is lost.
+- **`deploy.yml` builds on Node 22 and Vercel runs Node 24.** Working fine; the first place
+  to look if a deploy ever behaves oddly.
 - **Session state is per tab and lost on full reload** (in-memory engine). Client-side
   navigation keeps it; `/trace/[txnId]` steps the slice forward on a direct visit so a deep
   link to a slice payment still works. Injected payments do not survive a reload.
 - The console's playback clock is payments-per-second, not real time; the slice spans ~4 h.
+- From the critique, not done and not required: a density strip for the approve band on the
+  ribbon; keyboard focus on feed rows (`tr.selectable:focus-visible` is dead CSS with no
+  `tabindex`); a confirmation on Rewind; a persistent marker for the most recent
+  interception so a demo does not depend on the feed filter.
 - Possible follow-ups, none required: durable `Store` (Neon), an ROC/PR chart on `/model`,
   a Playwright smoke test in CI against `next start`.
+
+## Working with the three copies
+
+`C:/D/Kreaton` is the working copy. `C:/Users/kakas/OneDrive/Desktop/Github Uploads/Kreaton`
+is a clone with three remotes: `origin` (junekashif/Kreaton), `cognitia` (the org repo), and
+`worktree` (the working copy). To ship a change:
+
+```bash
+cd C:/D/Kreaton && git commit ...
+cd "C:/Users/kakas/OneDrive/Desktop/Github Uploads/Kreaton"
+git fetch worktree && git merge --ff-only worktree/main
+git push origin main      # this is the deploy
+git push cognitia main    # this is the submission
+```
+
+Pushing to `cognitia` asks for an explicit confirmation in the assistant's auto mode. That
+is deliberate for a submission repo.
