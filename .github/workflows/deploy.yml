@@ -21,6 +21,32 @@ env:
   VERCEL_TELEMETRY_DISABLED: 1
 
 jobs:
+  # This workflow is copied wherever the repository is, including into
+  # organisations that hold none of the Vercel secrets. Without them the deploy
+  # job cannot do anything useful, and a failing deploy on a copy that was
+  # never meant to deploy reads as a broken build. Secrets cannot be tested
+  # in a job-level `if:` directly, so this job reads one and publishes the
+  # answer as an output for the deploy job to gate on. The verify job runs
+  # regardless: the tests and the model gate are worth running on any copy.
+  preflight:
+    name: Check deploy credentials
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      configured: ${{ steps.check.outputs.configured }}
+    steps:
+      - id: check
+        env:
+          TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          if [ -n "$TOKEN" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+            echo "Vercel credentials present; deploy will run."
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "No VERCEL_TOKEN secret on this repository; deploy will be skipped."
+          fi
+
   verify:
     name: Verify before deploy
     runs-on: ubuntu-latest
@@ -42,7 +68,8 @@ jobs:
     name: Build and deploy to production
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: [verify]
+    needs: [preflight, verify]
+    if: needs.preflight.outputs.configured == 'true'
     environment:
       name: production
       url: ${{ steps.deploy.outputs.url }}

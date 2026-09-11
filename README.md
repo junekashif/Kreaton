@@ -96,6 +96,10 @@ deployment URL, and deployment protection gates that URL even for a production d
 request to it is redirected to a login page, so the test would fail on every deploy while the site
 itself was healthy. The production domain is not gated.
 
+Without the secrets the deploy job skips itself rather than failing, so a copy of this
+repository that holds none of them — a fork, or the hackathon organisation's copy —
+still runs the tests and the model gate and shows a clean result.
+
 Set up once:
 
 1. Create a Vercel project with **Root Directory** `apps/web`. Leave "Include source files outside of
