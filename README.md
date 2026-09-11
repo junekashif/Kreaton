@@ -14,6 +14,10 @@ re-confirmation protocol designed not to be relayable by the person coaching the
 Everything runs from one dependency-free TypeScript engine that executes identically in a browser tab,
 in a server route handler and in the test runner.
 
+**Live console: https://kreaton-upi.vercel.app** — press "Watch it run" to replay the held-out
+window. The engine runs in the tab, so the decisions on screen are computed there and not read back
+from a recording.
+
 ## What is here
 
 | Path | What it is |
@@ -87,12 +91,21 @@ Production is deployed by GitHub Actions, not by Vercel's git integration, which
 model gate, then runs `vercel build` and `vercel deploy --prebuilt --prod`, and finally smoke-tests the
 health endpoint of the deployment it produced.
 
+The smoke test runs through `vercel curl` rather than plain `curl`. `vercel deploy` prints the unique
+deployment URL, and deployment protection gates that URL even for a production deployment: a plain
+request to it is redirected to a login page, so the test would fail on every deploy while the site
+itself was healthy. The production domain is not gated.
+
 Set up once:
 
 1. Create a Vercel project with **Root Directory** `apps/web`. Leave "Include source files outside of
    the Root Directory" enabled; the console imports the workspace packages and `data/`.
 2. Add repository secrets `VERCEL_TOKEN`, `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` (the last two are in
    `.vercel/project.json` after `vercel link`).
+
+Building on Windows is the one thing that does not work: `vercel build` creates symlinks under
+`.vercel/output`, which the OS refuses without Developer Mode. Deploy from Windows with
+`vercel deploy --prod`, which builds remotely, or let the workflow do it on Linux.
 
 ## Results at a glance
 
