@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kreaton — Questions a judge will ask</title>
+<link rel="stylesheet" href="print.css">
+</head>
+<body>
+
+<section class="cover">
+  <div>
+    <div class="kicker">Team Kreaton · COGNITIA 2026 · FINTECH-PS2</div>
+    <h1>Questions a judge will ask, and how to answer them</h1>
+    <p class="lede">Grouped by what the judge is really probing. Each answer gives the fact, the number where there is one, and where on screen to point. The hard questions are in here on purpose — the ones where the honest answer is "no" or "it is a floor" — because those are the ones that decide whether the panel trusts the rest.</p>
+  </div>
+  <div class="foot">
+    <b>Before the demo:</b> open kreaton-upi.vercel.app, press Watch it run, let it reach 400+ payments, filter to "Only the ones it stopped", click the top row. That one screen answers half of these.<br>
+    <b>Every number here</b> is from the committed artefacts and can be reproduced with <code>npm run artefacts</code>.
+  </div>
+</section>
+
+<h2>A. What is this, and why does it matter?</h2>
+
+<div class="qa">
+<p class="q">What problem are you solving? Banks already have fraud detection.</p>
+<div class="a">
+<p>They have fraud detection for <em>unauthorised</em> fraud — a stolen card, a phished password. That works because the victim did not make the payment. In an <strong>authorised push payment scam</strong> the victim did: they were talked into it by someone posing as police, a bank officer or an employer, and they pressed the buttons themselves with their own PIN on their own phone. Every authentication check passes, because it really is them. The bank sees an ordinary transfer and lets it through.</p>
+<p>What is wrong is the <em>intent</em>, and intent leaves a different fingerprint: a beneficiary added minutes ago by pasting an identifier from a chat, a payer on a forty-minute call moving faster than usual, an amount far outside their history, a receiving account that is days old and forwards everything it receives within the hour. Kreaton reads that fingerprint at the moment of authorisation and decides.</p>
+</div>
+<p class="say"><b>Point at:</b> the orientation band at the top of the console, which says this in three sentences.</p>
+</div>
+
+<div class="qa">
+<p class="q">Show me it working.</p>
+<div class="a">
+<p>Press <strong>Watch it run</strong>. Payments flow at six a second; the "Let through" counter races ahead while "Held" and "Blocked" barely move — that imbalance is the whole problem in one picture. Press <strong>Only the ones it stopped</strong>, click the top row, and the panel fills in with every signal, its measurement, and how much it moved the verdict. Then inject <strong>Digital arrest</strong> and watch it get blocked at ~97%.</p>
+</div>
+<figure>
+  <img src="shots/console-running.png" alt="The console mid-replay">
+  <figcaption>The console 400 payments in. Everything the panel will ask about is on this screen: the three outcomes, the six statistics, the ribbon, the assessment.</figcaption>
+</figure>
+</div>
+
+<div class="qa">
+<p class="q">Is this real data?</p>
+<div class="a">
+<p><strong>No, and we say so on every screen.</strong> There is no public dataset of UPI payments labelled for APP fraud with session context; the nearest public material, PaySim, has no call state, no device, no entry method. So the corpus is generated — 4.78 lakh payments, 4,000 payers, eight named scam typologies, each with a written fingerprint. The generator is treated as part of the model: its assumptions are documented, its outputs are checked for leakage, and a guard fails the build if any single signal separates the classes on its own, because on generated data that is how a leak presents.</p>
+<p>The <em>schema</em> is a real UPI push payment — VPAs, PSP handles, paise amounts, device and SIM hashes, session context. The <em>values</em> are synthetic. No figure we quote is a claim about live UPI traffic.</p>
+</div>
+<p class="say"><b>If pressed:</b> "Which would you rather we did — measure honestly on data we generated and documented, or quote numbers we cannot justify?" Then show them the <b>Your data</b> screen and offer to run their file.</p>
+</div>
+
+<h2 class="break">B. How does the model work?</h2>
+
+<div class="qa">
+<p class="q">What algorithm is it? Is it machine learning?</p>
+<div class="a">
+<p>It is a fitted statistical model, chosen so that every decision can be reconstructed by hand. Twelve signals are each discretised and mapped to a fitted log-likelihood ratio — the weight-of-evidence form used in credit scoring for decades. Those are weighted, discounted for correlation within their group, floored where an attacker controls the evidence, and summed in log-odds. Isotonic regression maps the sum to a calibrated probability. The weights are fitted by penalised logistic regression (IRLS, ridge centred on one); the calibration by pool-adjacent-violators.</p>
+<p>It is <em>not</em> a gradient-boosted tree or a neural network, and that was a decision. An additive model is an explanation, not a summary: the contributions sum exactly to the score, and the engine asserts that on every decision. A feature-attribution method laid over a black box approximates; this reconstructs. It also runs in tens of microseconds, which is why the console can execute the real engine in the browser tab.</p>
+</div>
+<p class="say"><b>Point at:</b> the Evidence table in the assessment panel. "Prior −6.52 + 8.02 = 1.49 nats" at its top is the sum being shown to add up.</p>
+</div>
+
+<div class="qa">
+<p class="q">What are the twelve signals?</p>
+<div class="a">
+<p>Five groups. <strong>Receiving side:</strong> beneficiary novelty, account age, fan-in × onward velocity, proximity to a confirmed mule. <strong>Behavioural:</strong> amount deviation against the payer's own history, time-of-day surprisal, velocity burst, drain ratio. <strong>Session context:</strong> concurrent coercion indicators (call, screen share, remote access), urgency (app switches, entry method, seconds to authorise). <strong>Device:</strong> trust age, collapsed to zero on a SIM swap. <strong>Structuring:</strong> placement below limits, window totals crossing them, split re-attempts against an open hold.</p>
+<p>The one worth explaining is <strong>fan-in × onward velocity</strong>. Many unrelated payers in a day describes a popular merchant as well as a mule. What separates them is dwell time: a merchant settles on a cycle; a mule exists to forward. The product isolates the conjunction that identifies a collection account.</p>
+</div>
+<p class="say"><b>Point at:</b> the Model page, which lists every signal with its weight, bin edges, reason-code prefix and a paragraph of rationale.</p>
+</div>
+
+<div class="qa">
+<p class="q">Where does the threshold come from? Who picked it?</p>
+<div class="a">
+<p>Nobody. There is no threshold. Each of the three actions is priced in rupees — approve costs the expected liability (probability × amount × unrecovered share × liability share); hold and block cost friction (handling, abandonment, lifetime value at risk) plus whatever leaks past them — and the cheapest is taken. The boundary falls out of that arithmetic and <em>moves with the amount</em>: wrongly approving ₹5 lakh costs far more than wrongly approving ₹500, while wrongly holding either costs about the same. That is why the decision lines on the ribbon slope downward.</p>
+</div>
+<p class="say"><b>Point at:</b> "Expected cost of each action" under the evidence, then the ribbon's two curved lines. Change the policy dropdown to Liability-first and watch the lines move.</p>
+</div>
+
+<figure class="half">
+  <img src="shots/console-assessment-cost.png" alt="Expected cost of each action">
+  <figcaption>Three actions, priced. Block is cheapest at ₹482 against ₹18,326 for approving; this is the decision.</figcaption>
+</figure>
+
+<div class="qa">
+<p class="q">How accurate is it? Give me numbers.</p>
+<div class="a">
+<p>On the held-out window — 1.91 lakh payments the model never saw during fitting, chronologically after the training window:</p>
+<ul>
+<li>ROC AUC <strong>0.996</strong>, PR AUC <strong>0.890</strong> at 0.30% prevalence, calibration error <strong>0.0019</strong></li>
+<li>Recall <strong>93.4%</strong> at a 1% false-positive ceiling; <strong>82.3%</strong> at 0.1%</li>
+<li>Under the default policy: <strong>80.9%</strong> of scams caught by count, <strong>95.7%</strong> by value, interrupting <strong>0.145%</strong> of genuine payments at <strong>74.8%</strong> precision</li>
+<li>₹8.9 crore of liability avoided against ₹3.3 lakh of friction on the 40-day window</li>
+<li>p99 latency <strong>0.118 ms</strong></li>
+</ul>
+<p>On synthetic data. The Portfolio page shows all of it with a per-typology breakdown.</p>
+</div>
+</div>
+
+<div class="qa">
+<p class="q">Why should I believe your statistics? Did you check them?</p>
+<div class="a">
+<p>Independently, in a different language. <code>analysis/crosscheck.py</code> reproduces the fit in scikit-learn and SciPy from the exported feature stream: the per-signal weights agree to five decimal places and sklearn's isotonic regression reaches the same calibration error. Ten of ten checks pass.</p>
+<p>That cross-check is also what found our worst bug. The first committed calibration was nearly a straight line because the isotonic fitter never merged equal levels — sklearn reached an ECE of 0.0018 against our 0.0144. Fixing it moved the false-positive rate from 3.14% to 0.145% at the same detection. We record that in the build notes because the finding is the evidence that the check is real.</p>
+</div>
+</div>
+
+<h2 class="break">C. What happens when the fraudster adapts?</h2>
+
+<div class="qa">
+<p class="q">A fraudster will learn your rules. Then what?</p>
+<div class="a">
+<p>We ran that. Six attack strategies — structuring below limits, building a false baseline with small payments first, delayed extraction, context hygiene (turning off every indicator the attacker controls), threshold probing, mule rotation — 400 episodes each, against three defences tuned to interrupt the <em>same</em> number of genuine customers so the comparison is fair. At matched friction the full engine catches <strong>73.8%</strong> of attacked episodes against <strong>13.1%</strong> for a tuned amount-threshold rule; under the liability-first preset, <strong>81.1%</strong> against <strong>19.3%</strong>.</p>
+</div>
+<p class="say"><b>Point at:</b> the Adversarial page.</p>
+</div>
+
+<figure>
+  <img src="shots/adversarial.png" alt="The adversarial report">
+  <figcaption>Six attacks, three defences, matched friction. The weakest cell is on this page on purpose.</figcaption>
+</figure>
+
+<div class="qa">
+<p class="q">What is it worst at?</p>
+<div class="a">
+<p><strong>Context suppression</strong> — an attacker who keeps the victim off the phone, has them type the identifier rather than paste it, and tells them to take their time. That removes the signal group that most distinguishes APP fraud from ordinary payments. Detection there is 25% under the balanced policy and 37.5% under liability-first. It is an injectable scenario in the console so the panel can see it fail.</p>
+<p>What stops it being zero is the <strong>asymmetric evidence cap</strong>. A fitted model learns that the absence of a call is strong evidence of legitimacy — and the attacker controls that. So the total exculpatory contribution from attacker-controllable signals is floored. The hygienic attacker still has to beat the receiving-side signals, which they do not control: the account's age, its fan-in, its onward velocity.</p>
+</div>
+<p class="say"><b>Say it before they ask:</b> "A fraud tool that only demonstrates its successes is not telling you what it is worth."</p>
+</div>
+
+<div class="qa">
+<p class="q">What if they split the payment to stay under the limit?</p>
+<div class="a">
+<p>The structuring signal looks at the trailing window, not the payment. It fires when the window's total crosses a monitored threshold that no single payment crosses, and adds a large fixed penalty for a re-attempt against an open hold, so halving the amount does not defeat the hold protocol. Inject "Structuring" and "Split re-attempt": the first payment passes, the second is caught, and the retry is linked to the hold and escalated.</p>
+</div>
+</div>
+
+<div class="qa">
+<p class="q">What if they make a few small payments first to look normal?</p>
+<div class="a">
+<p>The personal baseline uses the median and the median absolute deviation in log space, not the mean and standard deviation. MAD has a fifty-percent breakdown point: one large payment cannot shift it. That attack is "baseline building" in the suite.</p>
+</div>
+</div>
+
+<h2 class="break">D. Can it use our data?</h2>
+
+<div class="qa">
+<p class="q">Can we run our own dataset through it?</p>
+<div class="a">
+<p>Yes, four ways, all through one importer. Drop a CSV, TSV or JSON file on the <strong>Your data</strong> screen; call <code>POST /api/v1/import</code>; run <code>npm run ingest</code> for a whole dataset with full metrics; or compose a single payment by hand. A bank statement works — no payer column and no beneficiary number are both handled — and so does PaySim.</p>
+</div>
+<figure>
+  <img src="shots/data-mapping-top.png" alt="The mapping screen">
+  <figcaption>The importer proposes which column feeds which engine field; the operator confirms every line before anything is scored.</figcaption>
+</figure>
+</div>
+
+<div class="qa">
+<p class="q">What will it tell us about our data that we do not want to hear?</p>
+<div class="a">
+<p>That it almost certainly lacks session context. A bank statement does not know whether the payer was on a call. When those columns are absent the engine does not treat them as neutral — it sees every payment as though the attacker had suppressed every indicator they control. That is the model's weakest position, and a detection rate measured on such a file is a <strong>floor</strong>. The report says so beside the number, names every field left at an attacker-favourable value, every substitution, every dropped row, and the structural limits of the dataset. An unlabelled file gets no accuracy figure at all — decisions and reasons, not a score.</p>
+</div>
+<figure>
+  <img src="shots/data-report.png" alt="The honesty report">
+  <figcaption>"What this file can and cannot show." The cautions are in plain language and cannot be skipped.</figcaption>
+</figure>
+</div>
+
+<div class="qa">
+<p class="q">Show me it on a bank statement.</p>
+<div class="a">
+<p>The built-in sample is a ten-row passbook: salary in, groceries, electricity, a shop paid three times under three spellings, and one ₹89,000 payment to "CYBER CELL VERIFICATION". With no session context at all the engine blocks that payment at 90.4% — on the receiving account's age, the amount against this account's history, and the drain ratio, which used the statement's own balance column and saw it would empty the account.</p>
+</div>
+<figure>
+  <img src="shots/console-imported.png" alt="The console replaying a bank statement">
+  <figcaption>The banner says which file is loaded and that it carries no ground truth. The ₹89,000 payment is blocked.</figcaption>
+</figure>
+</div>
+
+<div class="qa">
+<p class="q">Does it connect to real payments? Can it stop a real transfer?</p>
+<div class="a">
+<p><strong>No.</strong> Nothing is connected to NPCI, a switch, or any provider sandbox, and nothing moves money. What exists is the integration surface a payment service provider would call in its authorisation path: <code>POST /api/v1/authorize</code> takes a payment and returns a decision with the full assessment in about a tenth of a millisecond. Connecting it is an integration project with a PSP, not a change to the engine.</p>
+</div>
+<p class="say"><b>Do not soften this.</b> A judge who hears "sort of" will assume the rest is "sort of" too.</p>
+</div>
+
+<h2 class="break">E. Can a regulator trust it?</h2>
+
+<div class="qa">
+<p class="q">A customer complains their payment was blocked. What do you show them?</p>
+<div class="a">
+<p>The assessment: every signal, what it measured in natural units, how much it moved the verdict, and a stable reason code for each — <code>APP-AMT-7</code>, <code>APP-CAL-4</code> — that a regulator can be given a table for. Then the three costs and why block was cheapest. The contributions sum exactly to the score; a reviewer who disagrees can point at the line that produced it.</p>
+</div>
+<p class="say"><b>Point at:</b> the assessment panel; open the trace for the full case file.</p>
+</div>
+
+<div class="qa">
+<p class="q">How do you prove nobody altered a decision afterwards?</p>
+<div class="a">
+<p>Every decision is written to an append-only ledger where each record carries a SHA-256 of the one before it. Change any record and every later hash stops matching; the gate verifies the chain, exports it, re-imports it, tampers with one record and checks the break is detected at exactly that record. The Audit page is the regulator's view — what was decided, when, under which model digest and which policy digest.</p>
+</div>
+<figure>
+  <img src="shots/audit.png" alt="The audit trail">
+  <figcaption>The audit trail. Policy changes are on the same chain as decisions, so a change of settings is itself evidence.</figcaption>
+</figure>
+</div>
+
+<div class="qa">
+<p class="q">Where is that record kept? What happens when the server restarts?</p>
+<div class="a">
+<p>Hot state is in memory, because twelve signals each doing a database round trip would blow a millisecond budget — every production fraud engine works this way. Durability sits <em>behind</em> the decision: after each response is returned, the sealed record, the payment and any hold are copied in batches to a Google Sheet through a service account. A judge can open that spreadsheet in a browser. If the copy fails the decision is unaffected, and <code>/api/v1/health</code> shows the failure count and the last error rather than pretending a record is being kept.</p>
+<p>We verified it against the live site: a decision made at kreaton-upi.vercel.app was read back out of the sheet.</p>
+</div>
+<p class="say"><b>If asked "a spreadsheet?":</b> at this scale, yes, and it has one property no database has — anyone can read it without credentials or a query tool. At portfolio volume the sink is the seam to replace; it is five optional methods.</p>
+</div>
+
+<div class="qa">
+<p class="q">Who decides the trade-off between stopping scams and annoying customers?</p>
+<div class="a">
+<p>The institution, and the Policy page is where. It is expressed two ways: as prices — liability share, friction per hold, abandonment rate, lifetime value — for a risk officer, and as rate ceilings — "no more than 0.5% of genuine payments interrupted" — for an operations team, solved as a shadow price of friction. Every candidate is priced against the scored population before it is applied, and applying it is written to the ledger.</p>
+</div>
+<figure>
+  <img src="shots/policy.png" alt="The policy studio">
+  <figcaption>The policy studio. The frontier chart shows what each setting buys and costs.</figcaption>
+</figure>
+</div>
+
+<h2 class="break">F. How was it built?</h2>
+
+<div class="qa">
+<p class="q">What is the stack?</p>
+<div class="a">
+<p>One TypeScript monorepo. The engine (<code>packages/core</code>) has <strong>zero runtime dependencies</strong> and runs identically in a browser tab and a serverless function. The console is Next.js 16 with React 19, plain CSS, and hand-drawn SVG charts — no UI library, no chart library. Simulation, fitting and the adversarial suite are TypeScript run with <code>tsx</code>. A Python sidecar cross-checks the statistics offline. Vitest for 107 tests. GitHub Actions drives the Vercel CLI to deploy.</p>
+</div>
+</div>
+
+<div class="qa">
+<p class="q">Why no ML framework? Why no database?</p>
+<div class="a">
+<p>Because the requirements — reconstructible by hand, microsecond latency, runs in a browser — are met better without them, and every dependency is something a reviewer has to trust. The fitter is 500 lines of IRLS and isotonic regression we can point at. The store is a synchronous interface with a memory implementation because a real-time decision path cannot wait on a network; durability is a sink behind it.</p>
+</div>
+</div>
+
+<div class="qa">
+<p class="q">How is it tested?</p>
+<div class="a">
+<p>107 unit tests, and a sixteen-check model quality gate that generates a reduced corpus, fits, replays and asserts on discrimination, calibration, the single-signal leak guard, the operating point, p99 latency, the audit chain and tamper detection, and the recoverability curve. Both run on every push. Nothing deploys unless both pass.</p>
+</div>
+</div>
+
+<div class="qa">
+<p class="q">What went wrong during the build?</p>
+<div class="a">
+<p>Seven things worth naming, all in <code>docs/PROGRESS.md</code>. The calibration bug (found by the cross-check). CI failing on every commit because a generated type only existed locally. Three separate fixes to the deploy smoke test, each findable only by running it. A deploy that failed after adding two packages because Vercel builds inside <code>apps/web</code> and never compiled them. A Sheets test suite that passed 21 tests then wrote empty columns in production, because the fixture had invented a shape the engine never emits. Flushes that never completed on Vercel because the instance freezes after the response. And the console saying "labelled legitimate" for payments a file never labelled.</p>
+<p>We record these because a build log with no failures in it was not watched.</p>
+</div>
+</div>
+
+<h2 class="break">G. Rapid-fire</h2>
+
+<table>
+<thead><tr><th style="width:38%">Question</th><th>Answer</th></tr></thead>
+<tbody>
+<tr><td>How fast is a decision?</td><td>Mean 0.04 ms, p99 0.12 ms, for twelve signals, fusion, calibration, recoverability, three costs and a sealed audit record.</td></tr>
+<tr><td>How many scams does it miss?</td><td>19.1% by count on the held-out window, 4.3% by value. The ones it misses are small.</td></tr>
+<tr><td>How many customers does it annoy?</td><td>1.45 in a thousand under the default policy. The Policy page lets you make it fewer, and shows what that costs.</td></tr>
+<tr><td>What is "held to verify"?</td><td>A soft hold with a challenge chosen so the coach on the phone cannot relay it — a named-payee confirmation, not an OTP. Re-attempts are linked; a budget of retries then escalates to human review.</td></tr>
+<tr><td>What is the recoverability curve?</td><td>How much of the money could still be frozen at a given delay, from a Monte Carlo over mule-chain hops. It falls to 6% by four hours — which is why stopping a payment beats chasing it.</td></tr>
+<tr><td>Why is the "approve" colour teal, not green?</td><td>Green against the block red failed colour-blind separation (deutan ΔE 7.6). Teal at hue 195 is the worst pair at 13.5.</td></tr>
+<tr><td>Does it work on a phone?</td><td>Yes. Every route verified free of horizontal overflow at 390px.</td></tr>
+<tr><td>What happens on reload?</td><td>The shipped replay resets. An imported file and the replay position are kept in the browser and restored.</td></tr>
+<tr><td>Can I see the code?</td><td>github.com/junekashif/Kreaton, public, MIT. Every figure regenerates with <code>npm run artefacts</code>.</td></tr>
+<tr><td>Who built it?</td><td>Team Kreaton.</td></tr>
+<tr><td>What would you do next?</td><td>Run PaySim's real file. Connect a PSP sandbox. Replace the sink with Postgres at volume. Get a beneficiary-intelligence feed, which is the input the payee-graph group depends on and the one no sending institution can observe alone.</td></tr>
+</tbody>
+</table>
+
+<h2>H. The demo, in order</h2>
+
+<ol>
+<li><strong>Open</strong> kreaton-upi.vercel.app. Say what APP fraud is in two sentences. (30s)</li>
+<li><strong>Watch it run.</strong> Let the counters diverge. Name the imbalance. (30s)</li>
+<li><strong>Filter</strong> to "Only the ones it stopped". Click the top row. Walk the evidence table top to bottom; point at the sum. Point at the three costs. (90s)</li>
+<li><strong>Inject Digital arrest.</strong> Blocked at ~97%. Then <strong>inject Context suppression</strong> and let it pass. Say why. Switch to Liability-first, inject again, watch it hold. (90s)</li>
+<li><strong>Your data.</strong> Load the bank statement sample, show the report, replay it, show the ₹89,000 block with every session signal quiet. (90s)</li>
+<li><strong>Adversarial</strong> page: 73.8% vs 13.1%. <strong>Audit</strong> page: the chain. (45s)</li>
+<li><strong>Close</strong> on what is not built: real rails, real data. Offer to run their file. (30s)</li>
+</ol>
+
+<p class="small" style="margin-top:12mm;border-top:1px solid var(--rule);padding-top:3mm">Built by Team Kreaton for COGNITIA 2026, problem statement FINTECH-PS2. Screenshots taken from the live console on 12 September 2026. All payments, payers and scams shown are synthetic.</p>
+
+</body>
+</html>

@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kreaton — Build and deployment</title>
+<link rel="stylesheet" href="print.css">
+</head>
+<body>
+
+<section class="cover">
+  <div>
+    <div class="kicker">Team Kreaton · COGNITIA 2026 · FINTECH-PS2</div>
+    <h1>How Kreaton was built and deployed</h1>
+    <p class="lede">Every part of the system, what it is made of, why that choice over the alternatives, and how it got from an empty folder to a public URL with a green pipeline. Written so that a reader can check each claim against the repository rather than take it on trust.</p>
+  </div>
+  <div class="foot">
+    <b>Repository</b> junekashif/Kreaton (public) · submission copy Cognitia-IEM/KREATON<br>
+    <b>Live</b> kreaton-upi.vercel.app · <b>Engine</b> 1.0.0-kreaton-2026-4000x60 · <b>Tests</b> 107 · <b>Gate</b> 16 checks<br>
+    Figures in this document are from the committed artefacts as of 12 September 2026.
+  </div>
+</section>
+
+<h2>Contents</h2>
+<div class="toc">
+<ol>
+<li>The problem, in one page</li>
+<li>Architecture at a glance</li>
+<li>The engine — packages/core</li>
+<li>The model — how it was trained and what it scores</li>
+<li>Data — the corpus, and what it is not</li>
+<li>Simulation, fitting and evaluation — packages/sim</li>
+<li>Bringing in outside data — packages/ingest</li>
+<li>The console — apps/web</li>
+<li>The API</li>
+<li>Persistence — where state lives</li>
+<li>Testing and the quality gate</li>
+<li>Deployment — GitHub Actions to Vercel</li>
+<li>Things that went wrong, and what they taught</li>
+<li>What is not built</li>
+</ol>
+</div>
+
+<h2>1. The problem, in one page</h2>
+
+<p>Authorised push payment (APP) fraud is the case where the victim is present, authenticated, and pressing the button themselves. Device fingerprinting, credential checks and velocity rules built for account takeover see nothing wrong, because nothing about the <em>authentication</em> is wrong. What is wrong is the <em>intent</em>, and intent leaves a different fingerprint: the beneficiary is new and was added minutes ago by pasting an identifier sent over chat; the payer is on a call and moving faster than usual; the amount is far outside their history; the receiving account is young, receives from many unrelated payers and empties within minutes.</p>
+
+<p>Kreaton is a sending-side, authorisation-time control. It sees the payment before settlement, has a budget of a few milliseconds, and can approve, hold for re-confirmation, or decline. Two framing choices shape everything downstream:</p>
+
+<ul>
+<li><strong>Money is the objective, not a score.</strong> The system never compares a risk score to a threshold somebody picked. It computes the expected cost, in rupees, of each available action and takes the cheapest. The threshold falls out of the arithmetic and moves with the amount.</li>
+<li><strong>Every decision must be reconstructible by hand.</strong> The score is a sum. The contributions are listed. The costs are listed. The audit record contains all of it, sealed. A reviewer who disagrees can point at the line that produced the decision.</li>
+</ul>
+
+<h2>2. Architecture at a glance</h2>
+
+<pre>kreaton/                     npm workspaces monorepo, TypeScript throughout
+├── packages/core            the engine: zero runtime dependencies, isomorphic
+├── packages/ingest          dataset import: delimited/JSON → engine transactions
+├── packages/sheets          durable write-behind sink to Google Sheets
+├── packages/sim             corpus generator, fitter, replay, metrics, adversary, CLI
+├── apps/web                 Next.js console and API routes
+├── analysis/                Python cross-check of the statistics (offline only)
+├── data/                    committed artefacts: fitted model, metrics, reports
+├── docs/                    MODELING, MODEL_CARD, SENSITIVITY, DATA_INPUT, PERSISTENCE
+└── .github/workflows        ci.yml and deploy.yml</pre>
+
+<table>
+<thead><tr><th>Layer</th><th>Technology</th><th>Lines</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td><code>packages/core</code></td><td>TypeScript 5.7, no dependencies</td><td class="num">4,671</td><td>Runs identically in a browser tab and a serverless function. Nothing to audit but our own code.</td></tr>
+<tr><td><code>packages/sim</code></td><td>TypeScript, <code>tsx</code> for scripts</td><td class="num">6,050</td><td>Everything offline: generation, fitting, evaluation, adversarial suite, CLIs.</td></tr>
+<tr><td><code>packages/ingest</code></td><td>TypeScript, no dependencies</td><td class="num">1,757</td><td>Same importer in the browser, the API and the CLI.</td></tr>
+<tr><td><code>packages/sheets</code></td><td>TypeScript + <code>node:crypto</code></td><td class="num">650</td><td>Service-account JWT signed directly; no <code>googleapis</code> tree.</td></tr>
+<tr><td><code>apps/web</code></td><td>Next.js 16.3, React 19.2, App Router, plain CSS</td><td class="num">8,604</td><td>No UI library, no chart library. Charts are hand-drawn SVG.</td></tr>
+<tr><td><code>analysis/</code></td><td>Python 3.11, NumPy, SciPy, scikit-learn, pandas</td><td class="num">442</td><td>Reproduces the TypeScript statistics independently. Nothing at runtime reads it.</td></tr>
+<tr><td>Tests</td><td>Vitest 2.1</td><td class="num">1,233</td><td>107 tests across four packages.</td></tr>
+</tbody>
+</table>
+
+<p>The unusual choice is that <strong>the console runs the real engine client-side</strong>. Because <code>packages/core</code> has no dependencies and an authorisation takes tens of microseconds, the browser tab executes the same compiled scorer as the server, against a pre-warmed slice of the corpus. What you see on screen is not a recording of results; it is the scorer running.</p>
+
+<h2 class="break">3. The engine — packages/core</h2>
+
+<p>One payment enters <code>Interceptor.authorize()</code> and leaves with an <code>Assessment</code>: every signal's measurement and contribution, the fused log-odds, the calibrated probability, the expected cost of each action, the recoverability estimate, the decision, any hold opened, and the sealed ledger position. The steps, in order:</p>
+
+<ol>
+<li><strong>Extract</strong> twelve raw statistics from the payment and the payer's and payee's profiles (<code>signals/extract.ts</code>).</li>
+<li><strong>Bin</strong> each against declared edges and look up its fitted log-likelihood ratio (<code>signals/specs.ts</code>, <code>fusion.ts</code>).</li>
+<li><strong>Weight, shrink, cap and sum</strong> into log-odds; verify additivity (<code>fusion.ts</code>).</li>
+<li><strong>Calibrate</strong> to a probability through the isotonic map (<code>fusion.ts</code>).</li>
+<li><strong>Estimate recoverability</strong> — what share of the money could still be frozen at the expected report lag (<code>recovery.ts</code>).</li>
+<li><strong>Price</strong> approve, hold and block in paise; take the cheapest (<code>cost.ts</code>, <code>policy.ts</code>).</li>
+<li><strong>Open or link a hold</strong> if the answer is hold, choosing a challenge the coach on the phone cannot relay (<code>hold.ts</code>).</li>
+<li><strong>Seal</strong> the assessment into the hash-chained ledger (<code>ledger.ts</code>).</li>
+<li><strong>Update</strong> the payer and payee profiles — last, so the payment is never scored against a baseline that already contains it (<code>profiles.ts</code>, <code>engine.ts</code>).</li>
+</ol>
+
+<h3>The twelve signals</h3>
+
+<table class="compact">
+<thead><tr><th>Signal</th><th>Group</th><th>What it measures</th><th class="num">Weight</th></tr></thead>
+<tbody>
+<tr><td>Beneficiary novelty</td><td>payee_graph</td><td>Hours since this payer first paid this beneficiary</td><td class="num">0.779</td></tr>
+<tr><td>Amount deviation</td><td>behavioural</td><td>Robust z-score of log amount against the payer's own history (median, MAD)</td><td class="num">1.160</td></tr>
+<tr><td>Time-of-day surprisal</td><td>behavioural</td><td>−log P(hour) under the payer's own hour histogram</td><td class="num">1.072</td></tr>
+<tr><td>Device trust age</td><td>identity_device</td><td>Hours since the device was bound; zero on a SIM swap</td><td class="num">0.972</td></tr>
+<tr><td>Unrelated inflow that leaves immediately</td><td>payee_graph</td><td>Distinct payers in 24h × fraction forwarded within the hour</td><td class="num">1.253</td></tr>
+<tr><td>Beneficiary account age</td><td>payee_graph</td><td>Hours since the account was first seen anywhere in the network</td><td class="num">0.879</td></tr>
+<tr><td>Concurrent coercion indicators</td><td>context</td><td>Weighted count: call duration, screen share, remote-access app</td><td class="num">0.908</td></tr>
+<tr><td>Session urgency</td><td>context</td><td>App switches, entry method, seconds from open to authorise</td><td class="num">0.831</td></tr>
+<tr><td>Threshold structuring</td><td>structuring</td><td>Placement below limits, window totals crossing them, split re-attempts</td><td class="num">0.590</td></tr>
+<tr><td>Velocity burst</td><td>behavioural</td><td>Payments in 24h against the payer's daily baseline</td><td class="num">0.826</td></tr>
+<tr><td>Account drain ratio</td><td>behavioural</td><td>Amount over available balance — observed if known, else estimated</td><td class="num">0.135</td></tr>
+<tr><td>Graph proximity to a confirmed mule</td><td>payee_graph</td><td>Hops to the nearest confirmed collection account</td><td class="num">1.237</td></tr>
+</tbody>
+</table>
+
+<h3>Choices worth defending</h3>
+
+<p><strong>Weight-of-evidence binning over raw features.</strong> Each bin carries a Laplace-smoothed <code>ln P(bin|fraud)/P(bin|legit)</code>. This is the classic credit-scoring form. It handles non-monotone signals without a transform, makes every contribution a number that sums exactly to the score, and gives every fired bin a stable reason code (<code>APP-AMT-7</code>, <code>APP-CAL-4</code>) that a regulator can be given a table for.</p>
+
+<p><strong>Additive log-odds, not a tree ensemble or a neural network.</strong> Three reasons. It is an explanation, not a summary: the engine asserts on every decision that the contributions sum to the score, and throws if they do not. It is fast enough to run in a browser tab. And its failure modes are visible in the table, where a boosted model that has learned an artefact of the generator is wrong invisibly.</p>
+
+<p><strong>Group correlation shrinkage.</strong> Four behavioural signals firing together are not four independent pieces of evidence. Intra-group correlation is estimated on the training window and each of <em>k</em> contributing signals in a group is discounted by <code>1/(1+(k−1)ρ)</code>. Applied inside the design matrix during fitting, so the weights are fitted against exactly what the runtime computes.</p>
+
+<p><strong>The asymmetric evidence cap.</strong> A fitted model learns that scams almost always coincide with a call, urgency and a pasted identifier — and therefore that the <em>absence</em> of those is strong evidence of legitimacy. An attacker controls those indicators. The cap floors the total exculpatory contribution from attacker-controllable signals, so a "hygienic" attacker cannot buy their way to approval by keeping the victim off the phone. This is a security decision, not a statistical one, and the adversarial suite measures what it costs and what it buys.</p>
+
+<p><strong>Robust statistics for the personal baseline.</strong> Median and MAD in log space, not mean and standard deviation. MAD has a fifty percent breakdown point: an attacker who seeds the baseline with one large payment before the extraction — a real attack, and one the suite runs — cannot shift it.</p>
+
+<p><strong>Expected cost, not a threshold.</strong> Each action is priced as liability (probability × amount × unrecovered share × liability share) plus friction (handling, abandonment, lifetime value at risk). The cheapest wins. The boundary therefore moves with the amount, and the <code>/policy</code> page lets a risk officer move it by changing prices rather than by guessing a cut-off.</p>
+
+<h2 class="break">4. The model — how it was trained and what it scores</h2>
+
+<div class="stat-row">
+<div class="stat"><div class="v">0.9960</div><div class="l">held-out ROC AUC</div></div>
+<div class="stat"><div class="v">0.8895</div><div class="l">PR AUC at 0.30% prevalence</div></div>
+<div class="stat"><div class="v">0.0019</div><div class="l">expected calibration error</div></div>
+<div class="stat"><div class="v">93.4%</div><div class="l">recall at 1% FPR</div></div>
+</div>
+
+<h3>Training data</h3>
+<dl class="kv">
+<dt>Corpus</dt><dd>4,78,090 payments over 60 days for 4,000 payers, 700 merchants, 60 mule chains; seed <code>kreaton-2026</code></dd>
+<dt>Fraud</dt><dd>1,434 (0.30%), across eight typologies</dd>
+<dt>Split</dt><dd>Chronological at day 36 — 2,86,854 train / 1,91,236 test. Never random.</dd>
+<dt>Fraud in training</dt><dd>421 payments</dd>
+</dl>
+
+<h3>Fitting pipeline</h3>
+<ol>
+<li>Generate the corpus deterministically from the seed (<code>generator.ts</code>, <code>typologies.ts</code>).</li>
+<li>Replay it chronologically through the engine with an unfitted model, collecting every raw signal (<code>replay.ts</code>). Beneficiary intelligence is released on its own delayed timeline so no payment is scored with knowledge that arrived after it.</li>
+<li>On the training window, compute per-bin weights of evidence with Laplace smoothing; estimate intra-group correlations (<code>fit.ts</code>).</li>
+<li>Fit per-signal weights by iteratively reweighted least squares with a ridge penalty centred on <strong>one</strong>, not zero — the null model is "trust the tables", and the penalty pulls a weight away only when the data insist.</li>
+<li>Fit the calibration map by isotonic regression (pool-adjacent-violators) on the training window.</li>
+<li>Evaluate on the test window; write <code>model.json</code>, <code>fit.json</code>, <code>metrics.json</code>.</li>
+</ol>
+
+<h3>Operating point under the default policy</h3>
+<table>
+<thead><tr><th>Measure</th><th class="num">Value</th><th>Note</th></tr></thead>
+<tbody>
+<tr><td>Detection by count</td><td class="num">80.9%</td><td>820 of 1,013 held-out scams intervened</td></tr>
+<tr><td>Detection by value</td><td class="num">95.7%</td><td>the large ones are caught</td></tr>
+<tr><td>False-positive rate</td><td class="num">0.145%</td><td>276 of 190,223 genuine payments interrupted</td></tr>
+<tr><td>Precision</td><td class="num">74.8%</td><td>three in four interventions were scams</td></tr>
+<tr><td>Liability avoided</td><td class="num">₹8.90 Cr</td><td>net of expected recovery</td></tr>
+<tr><td>Friction cost</td><td class="num">₹3.3 L</td><td>holds and blocks on genuine payments</td></tr>
+<tr><td>Net benefit</td><td class="num">₹8.86 Cr</td><td>on the 40-day test window</td></tr>
+<tr><td>Latency p99</td><td class="num">0.118 ms</td><td>mean 0.039 ms</td></tr>
+</tbody>
+</table>
+
+<h3>Adversarial evaluation</h3>
+<p>Six attack strategies — structuring, baseline building, delayed extraction, context hygiene, threshold probing, mule rotation — each run for 400 episodes against three defences tuned to the same friction so the comparison is fair. Under the balanced policy the expected-cost engine catches <strong>1,772 of 2,400</strong> attacked episodes (73.8%) against <strong>315</strong> (13.1%) for a tuned amount-threshold rule; under the liability-first preset, 1,946 (81.1%) against 462 (19.3%). The weakest position is context suppression, and the console offers it as an injectable scenario on purpose.</p>
+
+<h3>Independent cross-check</h3>
+<p><code>analysis/crosscheck.py</code> reproduces the fit in scikit-learn and SciPy from the exported feature stream: the per-signal weights agree to five decimal places, and sklearn's isotonic regression reaches the same calibration error. This is what found the session-2 calibration bug (§13). Ten of ten checks pass.</p>
+
+<h2 class="break">5. Data — the corpus, and what it is not</h2>
+
+<p>There is no public dataset of UPI payments labelled for APP fraud with session context. The nearest public material is PaySim, a mobile-money simulation with labels and amounts but no call state, no device, no entry method, and almost no repeat originators. So the primary corpus is generated, and the generator is treated as part of the model.</p>
+
+<p>Fraud is not drawn from one distribution. Eight named typologies — digital arrest, KYC update, investment/trading, job/task, refund/reversal, romance, marketplace purchase, impersonation of a known person — each carry a written fingerprint and their own amount distribution, call and screen-share probabilities, urgency profile, entry-method mix, structuring propensity, hour-of-day weights, episode length and beneficiary reuse rate. The corpus contains the hard cases as well as the easy ones, in shares that reflect published fraud reporting.</p>
+
+<h3>Four leakage controls</h3>
+<ol>
+<li><strong>Chronological split.</strong> The model is fitted on the past and judged on a future containing mule networks it never saw.</li>
+<li><strong>Profiles advance after scoring, never before.</strong></li>
+<li><strong>Beneficiary intelligence on a delayed timeline.</strong> An account is confirmed as a mule only after an earlier victim reports and an investigation links it.</li>
+<li><strong>The single-signal guard.</strong> If any signal's standalone held-out AUC exceeds 0.98, the seed script warns and the CI gate fails. On generated data that is how a leak presents. This guard caught three generator artefacts during the build.</li>
+</ol>
+
+<div class="note warn">
+<p><strong>Every figure in §4 is a measurement on synthetic data.</strong> The schema is modelled on a real UPI push payment — VPAs, PSP handles, paise amounts, device and SIM hashes, session context — and the values are generated. No figure in this document is a claim about live UPI traffic, and the model card says so wherever a number depends on an assumption.</p>
+</div>
+
+<h2>6. Simulation, fitting and evaluation — packages/sim</h2>
+
+<table>
+<thead><tr><th>Script</th><th>What it does</th><th>Writes</th></tr></thead>
+<tbody>
+<tr><td><code>npm run seed</code></td><td>Generate the corpus, replay, fit, export the console slice with warm profile snapshots</td><td><code>model.json</code>, <code>fit.json</code>, <code>public/data/slice.json</code></td></tr>
+<tr><td><code>npm run evaluate</code></td><td>Held-out replay with ground truth; portfolio report</td><td><code>metrics.json</code>, <code>portfolio.json</code></td></tr>
+<tr><td><code>npm run adversarial</code></td><td>Six attacks × three defences at matched friction, with ablations</td><td><code>adversarial.json</code></td></tr>
+<tr><td><code>npm run gate</code></td><td>Sixteen checks on a reduced corpus, as CI runs them</td><td>exit code</td></tr>
+<tr><td><code>npm run modelcard</code></td><td>Render <code>docs/MODEL_CARD.md</code> from the artefacts</td><td>markdown</td></tr>
+<tr><td><code>npm run ingest</code></td><td>Replay any dataset with full metrics (§7)</td><td>optional JSON</td></tr>
+<tr><td><code>npm run paysim</code></td><td>Cross-validate on the Kaggle file if present</td><td>—</td></tr>
+</tbody>
+</table>
+
+<p>The full artefact run takes about six minutes; <code>--quick</code> uses a 1,200-payer, 21-day corpus and is what the CI gate runs. The warm profile snapshots shipped with the console slice are what make the browser's decisions match the full replay: the seed script replays to the window start and trims the snapshot to what the signals can read, about 760 KB gzipped.</p>
+
+<h2 class="break">7. Bringing in outside data — packages/ingest</h2>
+
+<p>The console shipped able to replay only its own corpus. <code>@kreaton/ingest</code> reads a delimited or JSON file, matches its columns against the twenty-eight fields the engine can use, coerces the values and builds an ordered run of payments. The same code backs the <code>/data</code> screen, <code>POST /api/v1/import</code> and the <code>npm run ingest</code> CLI, so a file behaves identically wherever it is submitted.</p>
+
+<table>
+<thead><tr><th>Concern</th><th>How it is handled</th></tr></thead>
+<tbody>
+<tr><td>Delimiter</td><td>Sniffed by <em>consistency</em> across lines, not frequency, so a narration column full of commas does not fool it.</td></tr>
+<tr><td>Amounts</td><td>Indian and Western grouping, <code>₹</code>/<code>INR</code>/<code>Rs.</code>, trailing Dr/Cr, accounting parentheses. Sign dropped — direction is a separate field.</td></tr>
+<tr><td>Timestamps</td><td>Epoch ms and s, ISO 8601, dd/mm, mm/dd, PaySim step-hours. Ambiguous order is <em>stated</em>, not picked silently; overridable per column.</td></tr>
+<tr><td>No payer column</td><td>The file is read as one account holder — which is what a bank statement is.</td></tr>
+<tr><td>No beneficiary id</td><td>The narration folded to a stable slug becomes the identity, so three spellings of one counterparty are one beneficiary.</td></tr>
+<tr><td>Credits</td><td>Money in seeds the balance and is not scored. PaySim's PAYMENT and DEBIT are money leaving; only CASH_IN arrives.</td></tr>
+<tr><td>Ordering</td><td>Payments sorted by time, stably, before scoring. A reversed file would otherwise be judged against a future it has not had.</td></tr>
+<tr><td>Running balance</td><td>If present, the drain-ratio signal divides by the measurement rather than the spend-based estimate — a small core change with tests.</td></tr>
+<tr><td>Mule markings</td><td>Released at the row's timestamp, never retroactively.</td></tr>
+</tbody>
+</table>
+
+<p><strong>The report is the feature.</strong> Almost no real file carries UPI session context, and without it the engine is in the suppressed-indicator position from the adversarial suite — its weakest. Every route says so beside the figure, names each field left at its quiet value, each harmless substitution, rows dropped by reason, unreadable cells by column, and structural limits of the dataset (beneficiaries that never repeat, payers with no history). An unlabelled file gets no accuracy figure at all.</p>
+
+<h2>8. The console — apps/web</h2>
+
+<dl class="kv">
+<dt>Framework</dt><dd>Next.js 16.3.4, App Router, React 19.2.8, TypeScript 5.7</dd>
+<dt>Styling</dt><dd>Plain CSS with custom properties in one <code>globals.css</code>. No Tailwind, no component library.</dd>
+<dt>Charts</dt><dd>Hand-drawn SVG: the risk ribbon, the trade-off frontier, the policy surface, the recovery curve.</dd>
+<dt>State</dt><dd>One engine instance per tab, held outside React and exposed through <code>useSyncExternalStore</code>, because the engine mutates its store in place and the feed advances many times a second.</dd>
+<dt>Fonts</dt><dd>Instrument Sans and IBM Plex Mono via <code>next/font</code>.</dd>
+<dt>Routes</dt><dd><code>/</code> console · <code>/data</code> your own data · <code>/policy</code> · <code>/trace</code> and <code>/trace/[txnId]</code> · <code>/audit</code> · <code>/adversarial</code> · <code>/portfolio</code> · <code>/model</code></dd>
+</dl>
+
+<p>Design decisions recorded in <code>docs/PROGRESS.md</code>: the approve hue moved from green to teal because green against the block red measured a deutan colour-difference of 7.6, the weakest pair in the palette and the most important distinction in the product; every figure animates only on data change and never on scroll; <code>prefers-reduced-motion</code> is honoured; every route is verified free of horizontal overflow at 390px.</p>
+
+<h2 class="break">9. The API</h2>
+
+<pre>GET  /api/v1/health            model and policy digests, ledger head, persistence status
+GET  /api/v1/authorize         a complete example request body
+POST /api/v1/authorize         authorise one payment
+POST /api/v1/authorize/batch   authorise an ordered run, state carrying forward
+POST /api/v1/import            match a file's columns and report; optionally replay it</pre>
+
+<p>The authorisation response carries the decision, the calibrated probability, reason codes, the hold opened (if any) with the challenge to present, the full assessment, and the sealed ledger position. Invalid bodies return every problem at once rather than the first.</p>
+
+<p>The batch endpoint is <em>not</em> a loop around the single one: the structuring window, the hold linkage and every behavioural baseline carry forward between payments, so a run scored together gives different and correct answers. <code>/api/v1/import</code> replays on a scratch engine so a file sent to be understood leaves nothing behind in the live one.</p>
+
+<p><strong>What the API is and is not.</strong> It is the integration surface a payment service provider would call in its authorisation path. It is not connected to NPCI, to any switch, or to any provider sandbox. Nothing moves money.</p>
+
+<h2>10. Persistence — where state lives</h2>
+
+<p><code>Store</code> in <code>packages/core/src/store.ts</code> is a synchronous interface, and that is a decision. Twelve signals each making a database round trip would spend a single-digit-millisecond budget several times over. Production fraud engines hold hot profile state in memory for exactly this reason. Durability is layered <em>behind</em> the working set:</p>
+
+<pre>payment ──▶ [ in-memory Store ] ──▶ decision returned    (microseconds)
+                    │
+                    └──▶ PersistenceSink ──▶ durable backing   (afterwards)</pre>
+
+<p><code>PersistenceSink</code> receives writes after the decision has already been returned. Its contract is one sentence: an implementation must never throw into the caller.</p>
+
+<table>
+<thead><tr><th></th><th>Survives reload</th><th>Survives instance recycling</th><th>Visible to others</th></tr></thead>
+<tbody>
+<tr><td>Console session (browser)</td><td>—</td><td>n/a</td><td>no</td></tr>
+<tr><td>Imported dataset (IndexedDB)</td><td><strong>yes</strong></td><td>n/a</td><td>no</td></tr>
+<tr><td>Server engine state (memory)</td><td>n/a</td><td>—</td><td>no</td></tr>
+<tr><td>Audit ledger in Google Sheets</td><td><strong>yes</strong></td><td><strong>yes</strong></td><td><strong>yes</strong></td></tr>
+</tbody>
+</table>
+
+<p><strong>Google Sheets as the durable backing.</strong> A service account signs a JWT with <code>node:crypto</code> and exchanges it for an access token; rows are appended with <code>valueInputOption=RAW</code> so a 64-digit hash is not reinterpreted as a number. Writes are batched because Google allows about sixty per minute; a replay at sixty payments a second would exhaust that in one second. A 429 or 5xx keeps its rows for the next flush; a 403 — a sheet not shared with the service account — lets them go rather than queueing behind an error that will never clear. Profiles are deliberately not written. On Vercel, the flush is handed to <code>waitUntil</code> so the instance stays alive until the write settles without delaying the response. Verified end to end: a decision made against the live site was read back out of the spreadsheet.</p>
+
+<p>Both backings are optional. Unset, the engine behaves exactly as before and <code>/api/v1/health</code> reports <code>backing: memory</code>.</p>
+
+<h2 class="break">11. Testing and the quality gate</h2>
+
+<table>
+<thead><tr><th>Package</th><th class="num">Tests</th><th>What they pin</th></tr></thead>
+<tbody>
+<tr><td><code>core</code></td><td class="num">51</td><td>Hash chain and tamper detection, cost arithmetic and boundaries, recoverability monotonicity, the observed-balance path of the drain signal</td></tr>
+<tr><td><code>ingest</code></td><td class="num">31</td><td>Delimiter sniffing, quoted fields, amount and timestamp coercion, mapping detection, statement handling, ordering, PaySim semantics, the honesty warnings</td></tr>
+<tr><td><code>sheets</code></td><td class="num">25</td><td>JWT claims, token caching, tab creation, RAW appends, batching, the retry split, the memory bound, truncation, and that no failure reaches the engine — all against a fake transport</td></tr>
+<tr><td><code>sim</code></td><td class="num">—</td><td>Covered by the gate rather than unit tests</td></tr>
+</tbody>
+</table>
+
+<h3>The sixteen-check gate</h3>
+<p><code>npm run gate</code> generates a reduced corpus, fits, replays and asserts on a reduced-scale band for each: the committed model parses; generation is deterministic; IRLS converges; no signal exceeds 0.98 AUC alone; held-out ROC AUC, PR AUC, calibration error and recall at 1% FPR are within band; replay discrimination matches the fitter; false-positive and detection rates under the default policy are within band; p99 latency; the audit chain verifies, survives an export round trip, and detects tampering at the altered record; the recoverability curve is monotone. It runs on every push and takes about a minute.</p>
+
+<h2>12. Deployment — GitHub Actions to Vercel</h2>
+
+<p>Production is deployed by GitHub Actions, not by Vercel's git integration, which is disabled in <code>apps/web/vercel.json</code>. This keeps the deploy in the same place as the tests: nothing reaches production that did not pass them, and the workflow file is the single description of how.</p>
+
+<h3><code>ci.yml</code> — on every push and pull request</h3>
+<ol>
+<li><strong>verify</strong>: <code>npm ci</code>, typecheck (<code>tsc -b</code> on the packages, then <code>next typegen &amp;&amp; tsc --noEmit</code> for the app), lint, unit tests.</li>
+<li><strong>gate</strong>: build the packages, run the sixteen checks.</li>
+<li><strong>build</strong>: production <code>next build</code>, after verify.</li>
+</ol>
+
+<h3><code>deploy.yml</code> — on push to main</h3>
+<ol>
+<li><strong>preflight</strong>: publish whether <code>VERCEL_TOKEN</code> is set. A job cannot test a secret in its own <code>if:</code>, so a preceding job outputs the answer. The org's submission copy holds no secrets and therefore skips itself, keeping it green.</li>
+<li><strong>verify</strong>: the same checks as CI.</li>
+<li><strong>deploy</strong>: pinned Vercel CLI 59.16.0; <code>vercel pull</code>; <code>vercel build --prod</code>; <code>vercel deploy --prebuilt --prod</code>; then an authenticated smoke test of <code>/api/v1/health</code> on the unique deployment URL through <code>vercel curl</code>, which carries the token past deployment protection.</li>
+</ol>
+
+<dl class="kv">
+<dt>Project</dt><dd><code>kreaton-upi</code>, Root Directory <code>apps/web</code>, Node 24</dd>
+<dt>Domain</dt><dd><code>kreaton-upi.vercel.app</code>, added explicitly after a rename (a rename does not re-alias)</dd>
+<dt>Secrets</dt><dd><code>VERCEL_TOKEN</code> (sensitive), <code>VERCEL_ORG_ID</code>, <code>VERCEL_PROJECT_ID</code></dd>
+<dt>Env vars</dt><dd><code>KREATON_SHEETS_ID</code>, <code>KREATON_SERVICE_ACCOUNT_JSON</code> (sensitive), <code>KREATON_SHEETS_FLUSH_MS</code> — production only</dd>
+<dt>Three copies</dt><dd>working copy → <code>junekashif/Kreaton</code> (deploy source) → <code>Cognitia-IEM/KREATON</code> (submission), fast-forward only</dd>
+</dl>
+
+<h2 class="break">13. Things that went wrong, and what they taught</h2>
+
+<p>Every one of these is recorded in <code>docs/PROGRESS.md</code> with how it was found, because the finding is the evidence.</p>
+
+<h4>The calibration bug</h4>
+<p>The isotonic fitter's pool-adjacent-violators step never merged equal levels, so the step function kept every legitimate row as its own zero block and the knot compression described the whole high-risk tail with two knots. The committed calibration was close to a straight line. Found by the Python cross-check: sklearn reached an ECE of 0.0018 against our 0.0144. Fixing it moved the operating point from 3.14% to 0.145% false positives at the same detection — the "FPR too high" open question from session 1 was this bug.</p>
+
+<h4>CI had failed on every commit from the first</h4>
+<p>The root layout used a type Next generates into <code>.next/types</code>. Local checks passed because <code>.next</code> was always present; a clean checkout has none. Found only because the push was watched.</p>
+
+<h4>The smoke test needed three fixes</h4>
+<p><code>vercel curl</code> takes the URL positionally; <code>vercel deploy</code> prints JSON, not a bare URL; and <code>vercel curl</code> forwards unknown flags to curl, so <code>--token</code> broke it. Three deployments were READY while the test was still red. Each was findable only by running it.</p>
+
+<h4>The deploy that failed after adding two packages</h4>
+<p>Vercel's build command runs inside <code>apps/web</code> and was <code>next build</code> alone; the two new workspace packages resolve through <code>dist/</code>, which a fresh checkout does not have, and <code>transpilePackages</code> does not rescue a package whose entry file is missing. CI had passed because the root build compiles the packages first. Reproduced by deleting every <code>dist/</code> and building from <code>apps/web</code>; fixed by making that script compile the packages first.</p>
+
+<h4>The fake transport hid a bug</h4>
+<p>The Sheets sink passed 21 tests, then wrote four empty columns on every real decision. <code>LedgerEntry</code> is a discriminated union and an assessment's payment, decision and probability sit under <code>assessment</code>, not at the top level; the test fixture had invented a flat shape the engine never emits. A fake transport verifies the transport; it cannot verify an assumption about the data. Fixtures are built from the real union now.</p>
+
+<h4>The frozen instance</h4>
+<p>With Sheets configured on production, every flush failed with "socket disconnected before secure TLS connection was established". The sink flushes on a timer; the timer fires after the response has gone out; on Vercel that is after the instance has been frozen. <code>waitUntil</code> keeps it alive until the flush settles. The routes call it; the sink itself stays platform-agnostic.</p>
+
+<h4>"Labelled legitimate"</h4>
+<p>The assessment panel printed that for every payment without a fraud label. A file with no ground-truth column never said a payment was legitimate; it said nothing. It reads "no ground truth" now.</p>
+
+<h2>14. What is not built</h2>
+
+<ul>
+<li><strong>Real payment rails.</strong> Nothing is connected to NPCI, a switch or a provider sandbox. The API is the surface a PSP would call.</li>
+<li><strong>PaySim on the real file.</strong> The adapter is built and smoke-tested against a file in PaySim's format; the Kaggle download has not been run in this environment.</li>
+<li><strong>A production database.</strong> The Sheets sink is the durable backing at this scale and has the property that a judge can open it. At portfolio volume the sink is the seam to replace — <code>PersistenceSink</code> is five optional methods.</li>
+<li><strong>Beneficiary intelligence from a real feed.</strong> Onward velocity and confirmed-mule linkage are supplied inputs standing in for network-level sharing. Without such a feed the payee-graph group loses most of its power, and the import report says so whenever a file lacks it.</li>
+</ul>
+
+<p class="small" style="margin-top:12mm;border-top:1px solid var(--rule);padding-top:3mm">Built by Team Kreaton for COGNITIA 2026, problem statement FINTECH-PS2. Every figure is reproducible from the seed with the commands in §6; every claim about a defect can be checked against <code>docs/PROGRESS.md</code> and the commit history.</p>
+
+</body>
+</html>

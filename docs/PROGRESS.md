@@ -268,6 +268,17 @@ integration surface for that rather than a connection to one.
     RAW write mode exists for. Credentials are in `apps/web/.env.local`, gitignored.
 12. **Docs.** `docs/DATA_INPUT.md` and `docs/PERSISTENCE.md`, plus README sections. Runnable
     samples in `data/samples/`.
+13. **Three printed documents** in `docs/print/`, built as HTML and rendered through the
+    installed Chrome with real page numbers: the user manual rewritten as a second edition
+    covering `/data`, the composer and persistence, and correcting the first edition's
+    "reloading loses everything"; a build-and-deployment account of every layer, the
+    training pipeline, the operating point, the CI/CD path and the seven things that went
+    wrong; and a judge Q&A grouped by what each question probes, with the hard answers
+    ("no real data", "no real rails", "context suppression is 25%") written out rather than
+    softened. Thirty screenshots taken from the live site through Playwright, driving the
+    real flows so no image shows an empty page. Tall assessment panels are captured by DOM
+    boundary and split into evidence and cost images; blind pixel cropping cut through the
+    table twice before that.
 
 Verified by running: 107 tests pass (was 46), typecheck and lint clean, `next build` clean, the
 16-check gate passes, both new endpoints exercised with curl, and the console import driven end

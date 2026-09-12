@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kreaton — User manual</title>
+<link rel="stylesheet" href="print.css">
+</head>
+<body>
+
+<section class="cover">
+  <div>
+    <div class="kicker">Team Kreaton · COGNITIA 2026 · FINTECH-PS2</div>
+    <h1>How to use the Kreaton console</h1>
+    <p class="lede">Kreaton watches UPI payments as they are authorised and stops the ones that are scams. This guide takes you from never having seen it to reading every screen, running your own data through it, and knowing what each number means. It assumes you know nothing about fraud systems.</p>
+  </div>
+  <div class="foot">
+    <b>Live at kreaton-upi.vercel.app</b> · no login · works on a phone<br>
+    Second edition, September 2026. Adds the <b>Your data</b> screen, the single-payment composer, the durable audit record, and what changed on the console because of them.
+  </div>
+</section>
+
+<h2>What this is</h2>
+
+<p>In most fraud, someone steals your card or your password and spends your money. Banks are good at catching that, because you did not make the payment.</p>
+
+<p>An <strong>authorised push payment scam</strong> is different, and it is the one this system exists for. Someone calls pretending to be the police, a bank officer, an employer or a relative, and talks the victim into paying them. The victim taps the buttons themselves — their PIN, their phone, their bank app. To the bank it looks like an ordinary transfer, so it goes through, and by the time anyone reports it the money has been moved through a chain of accounts and withdrawn.</p>
+
+<p>Kreaton reads every payment at the moment it is authorised — in well under a millisecond — and decides whether it should go through, whether the payer should be asked to confirm, or whether it should be stopped. It does that by weighing twelve signals: how unusual the amount is for this payer, whether they are on a call right now, how old the receiving account is, how fast that account forwards money onward, and so on.</p>
+
+<div class="note">
+<p><strong>Everything shipped with the console is simulated.</strong> The payments, the people and the scams are generated from a synthetic dataset, so no real person's money or data appears anywhere. The figures are real measurements of the system, taken on that synthetic data. If you bring your own file (page 9), the console then measures on that instead — and tells you so on every screen.</p>
+</div>
+
+<h2>The three outcomes</h2>
+
+<p>Every payment ends up in exactly one of three states. These three words, and the three shapes beside them, appear on every screen — learn them once and the rest of the console reads itself.</p>
+
+<figure>
+  <img src="shots/console-key.png" alt="The three outcomes: Let through, Held to verify, Blocked">
+  <figcaption>The key at the top of the console. The counts are live and match the ribbon and the feed below.</figcaption>
+</figure>
+
+<table>
+<thead><tr><th>Outcome</th><th>What it means</th><th>How often</th></tr></thead>
+<tbody>
+<tr><td class="approve">Let through</td><td>Matches how this payer normally pays. It settles, untouched.</td><td>Almost every payment.</td></tr>
+<tr><td class="stepup">Held to verify</td><td>Something is off. The payer is asked to confirm who they are paying — in a way the fraudster on the phone cannot simply relay — before it moves.</td><td>A few in a thousand.</td></tr>
+<tr><td class="block">Blocked</td><td>Almost certainly a scam. The money never leaves the account.</td><td>A few in a thousand.</td></tr>
+</tbody>
+</table>
+
+<h2>Your first five minutes</h2>
+
+<h3>1. Open the console</h3>
+<p>Go to <strong>kreaton-upi.vercel.app</strong>. You land on the console with every counter at zero. Nothing is broken; nothing has been replayed yet.</p>
+
+<figure>
+  <img src="shots/console-fresh.png" alt="The console before anything has run">
+  <figcaption>Fresh. The key reads 0 / 0 / 0 and the large button says <b>Watch it run</b>.</figcaption>
+</figure>
+
+<h3>2. Press Watch it run</h3>
+<p>Payments start flowing through the engine at six per second. Each one is scored, decided, and written to the audit record as it passes. The clock in the top right is the engine's clock — it moves in payment time, not real time, so it runs faster than yours.</p>
+
+<h3>3. Let it run for about thirty seconds</h3>
+<p>You will see the <span class="approve">Let through</span> counter race ahead while <span class="stepup">Held</span> and <span class="block">Blocked</span> barely move. That imbalance is the whole problem in one picture: scams are rare, and a system that intervened too eagerly would block thousands of real customers to catch a handful of scams.</p>
+
+<figure>
+  <img src="shots/console-running.png" alt="The console mid-replay">
+  <figcaption>Mid-replay, 400 payments in. Counters at the top, measured statistics below them, the ribbon chart and the assessment panel below that.</figcaption>
+</figure>
+
+<h3>4. Read the six statistics</h3>
+
+<figure>
+  <img src="shots/console-stats.png" alt="The six statistics row">
+</figure>
+
+<table>
+<thead><tr><th>Figure</th><th>What it tells you</th></tr></thead>
+<tbody>
+<tr><td>Payments screened</td><td>How many have gone through the engine, and their total value.</td></tr>
+<tr><td>Scams caught</td><td>Of the scams in the stream so far, how many were held or blocked. Shown only when the data has ground truth.</td></tr>
+<tr><td>Genuine payments stopped</td><td>The false-positive rate. Every one is a real customer inconvenienced, so lower is better.</td></tr>
+<tr><td>Money protected</td><td>Money that would have been lost had the payment gone through, counted conservatively after assuming some would have been recovered anyway.</td></tr>
+<tr><td>Decision time</td><td>How long one decision takes, at the 99th percentile — the slow ones, not the average.</td></tr>
+<tr><td>Audit entries</td><td>Records in the tamper-evident chain, and the fingerprint of the latest one.</td></tr>
+</tbody>
+</table>
+
+<h3>5. Use the feed filter</h3>
+<p>Below the chart, the feed lists every payment. Since almost all of them are let through, press <strong>Only the ones it stopped</strong> to see just the interventions. This is the fastest way to see what the system is for.</p>
+
+<figure>
+  <img src="shots/console-feed-filtered.png" alt="The feed filtered to interventions">
+  <figcaption>The same feed, filtered. Each row shows the amount, the scam risk, the decision, and the leading reason in plain words — with the reason code beside it for anyone who needs the precise name.</figcaption>
+</figure>
+
+<h3>6. Click any row</h3>
+<p>The panel on the right fills in with why that payment got that decision. On a wide screen it stays beside the feed as you scroll; on a narrow one it comes to you.</p>
+
+<figure class="tall">
+  <img src="shots/console-assessment-evidence.png" alt="The assessment panel for a blocked payment">
+  <figcaption>A real blocked payment. Every signal is listed with what it measured, how much it moved the verdict, and in which direction. The contributions add up exactly to the total shown against <b>prior</b> at the top of the table — that is what makes every decision reconstructible by hand. Signals marked <b>quiet</b> did not fire; their small negative contributions are the engine noting the absence of a warning sign, and they are part of the reasoning too.</figcaption>
+</figure>
+
+<figure class="half">
+  <img src="shots/console-assessment-cost.png" alt="Expected cost of each action">
+  <figcaption>Below the evidence, <b>Expected cost of each action</b>. What approving, holding and blocking would each have been expected to cost, in rupees, given the probability and the amount. The cheapest is taken. There is no threshold anybody picked; this arithmetic is the decision, and it is the part that makes the system defensible to a regulator.</figcaption>
+</figure>
+
+<h2>The chart</h2>
+
+<figure>
+  <img src="shots/console-ribbon.png" alt="The risk ribbon">
+  <figcaption>Every payment is a mark. Left to right is the amount, from ₹10 to ₹10 lakh on a log scale. Bottom to top is how likely the engine thinks it is to be a scam. Almost everything sits in the bottom band: ordinary payments, correctly judged harmless.</figcaption>
+</figure>
+
+<p>The two curved lines are the <strong>decision boundaries</strong>. Above the lower line a payment is held; above the upper line, blocked. They slope down to the right because the boundary moves with the amount: the cost of wrongly approving a ₹5 lakh payment is far higher than wrongly approving ₹500, while the cost of wrongly holding either is about the same. The lines are not a threshold somebody picked — they fall out of the cost arithmetic, and they move when you change the policy in the dropdown.</p>
+
+<h2>Try a scam on it yourself</h2>
+
+<p>Scams are rare in the stream, so a live demonstration would wait a long time to see one arrive on its own. The injector builds one on demand against a real payer from the feed, with the context fingerprint that scam actually leaves, and pushes it through the same path as everything else.</p>
+
+<figure>
+  <img src="shots/console-inject-controls.png" alt="The scenario injector">
+  <figcaption>Pick a scenario, read what it is and what should happen, press <b>Inject</b>. Injected payments are marked as such and are excluded from the measured statistics, so the numbers on screen stay honest.</figcaption>
+</figure>
+
+<table>
+<thead><tr><th>Scenario</th><th>What it is</th><th>What should happen</th></tr></thead>
+<tbody>
+<tr><td>Digital arrest</td><td>A victim held on a video call by someone posing as police, told to transfer savings to a "verification" account.</td><td>Blocked. Call, urgency, novelty and amount all fire.</td></tr>
+<tr><td>KYC update</td><td>An urgent message that the account will be frozen unless a fee is paid to a pasted identifier.</td><td>Blocked.</td></tr>
+<tr><td>Structuring</td><td>An extraction split into payments each below a monitored limit.</td><td>The first passes; the window then crosses the threshold and the next is blocked.</td></tr>
+<tr><td>Split re-attempt</td><td>A held payment retried in two halves to a fresh account.</td><td>Held, then linked to the open hold, then escalated.</td></tr>
+<tr><td>Context suppression</td><td>The same extraction with every attacker-controllable indicator turned off: no call, typed identifier, unhurried.</td><td>Usually passes under Balanced; held under Liability-first. Try this one if you only try one.</td></tr>
+<tr><td>Legitimate large payment</td><td>A big payment to a beneficiary the payer has paid for months.</td><td>Let through.</td></tr>
+</tbody>
+</table>
+
+<figure class="tall">
+  <img src="shots/console-injected-evidence.png" alt="An injected digital-arrest payment, blocked">
+  <figcaption>The digital-arrest scenario, injected and blocked. The header line says <b>injected scenario</b> so nobody mistakes it for something the stream produced. Compare the evidence with the previous panel: here the coercion indicators, urgency and beneficiary novelty all fire, which is the fingerprint this scam leaves.</figcaption>
+</figure>
+
+<div class="note warn">
+<p><strong>Try "Context suppression" if you only try one.</strong> It is the case the system is worst at, and it is in the menu on purpose. A fraud tool that only demonstrates its successes is not telling you what it is worth. Run it on Balanced, then change the policy dropdown to Liability-first and inject it again.</p>
+</div>
+
+<h2 class="break">Your data <span class="sub">new in this edition</span></h2>
+
+<p>The console ships with a slice of the generated corpus. The <strong>Your data</strong> screen lets you replace it with a file of your own, or compose a single payment by hand and watch the decision move as you change it. Both run through exactly the same engine as everything else — nothing on this screen is a simulation of the product.</p>
+
+<h3>Replaying a file</h3>
+
+<figure>
+  <img src="shots/data-choose.png" alt="The Your data screen before a file is chosen">
+  <figcaption>Drop a file, choose one, or start from a sample. CSV, TSV, semicolon- or pipe-delimited text, or JSON. Nothing leaves your browser: the file is read and replayed in this tab.</figcaption>
+</figure>
+
+<p>Two samples are built in because they sit at opposite ends of what an import can tell you. The <strong>bank statement</strong> is what most people actually have: a date, a narration, debit and credit columns, a running balance — and no payer column, no beneficiary number, no session context. The <strong>UPI log</strong> is what a payment provider sees at authorisation, including the call and entry-method fields no public dataset carries.</p>
+
+<h4>Step 1 — confirm the mapping</h4>
+
+<p>The importer reads your column headings and proposes which engine field each one feeds. You confirm or change every line before anything is scored. This matters: bind the wrong column to the payer and every behavioural baseline is rebuilt against the wrong identity, and no number downstream would look wrong.</p>
+
+<figure>
+  <img src="shots/data-mapping-top.png" alt="The mapping screen for a bank statement">
+  <figcaption>A bank statement, recognised as such. The layout dropdown offers presets for shapes it knows — a Kreaton export, PaySim, a statement — and "matched from the column names" for everything else.</figcaption>
+</figure>
+
+<figure>
+  <img src="shots/data-mapping-rows.png" alt="Mapping rows for the identity group">
+  <figcaption>Each engine field, what it is for, which column feeds it, and — when nothing does — what the engine will assume instead. Fields marked with an amber dot are left at the value an <b>attacker would choose</b> when unmapped; the cost of a missing column is visible in the mapping itself, not only in the report below.</figcaption>
+</figure>
+
+<p>Two things a statement lacks are handled rather than refused. With <strong>no payer column</strong>, the whole file is read as one account holder — which is what a statement is. With <strong>no beneficiary number</strong>, the narration folded to a stable form becomes the identity, so "RAMESH TRADERS", "Ramesh Traders" and "UPI/RAMESH TRADERS." are one beneficiary rather than three. That is what lets the receiving-side signals work on a statement at all. Only the amount has no substitute.</p>
+
+<h4>Step 2 — check how the first rows read</h4>
+
+<figure>
+  <img src="shots/data-preview.png" alt="Preview of the first rows as the engine will read them">
+  <figcaption>The first rows after the mapping, before anything is scored. Credits have already been set aside — a salary is money in, not a payment.</figcaption>
+</figure>
+
+<h4>Step 3 — read what the file cannot show</h4>
+
+<p>This is the most important part of the screen, and it cannot be skipped.</p>
+
+<figure>
+  <img src="shots/data-report.png" alt="The honesty report for a bank statement">
+  <figcaption>What this file can and cannot show. Rows kept and dropped by reason, payers and how much history each has, how often beneficiaries repeat, whether there is ground truth — and the cautions in plain language.</figcaption>
+</figure>
+
+<div class="note bad">
+<p><strong>Almost no real file carries UPI session context.</strong> A bank statement does not know whether the payer was on a call, whether the identifier was pasted, whether the device was new. When those columns are absent the engine does not treat them as neutral — it sees every payment as though the attacker had suppressed every indicator they control. That is the hardest case for the model and the weakest one in the adversarial report. A detection rate measured on such a file is a <strong>floor</strong>, not a representative figure, and the console says so beside the number rather than letting it stand alone.</p>
+</div>
+
+<h4>Step 4 — replay it</h4>
+
+<figure>
+  <img src="shots/data-loaded.png" alt="The file has been loaded">
+  <figcaption>Loaded. The feed, the assessment panel, the ledger and the policy studio all now read from this file.</figcaption>
+</figure>
+
+<figure>
+  <img src="shots/console-imported.png" alt="The console replaying an imported bank statement">
+  <figcaption>The console with the sample statement loaded. The banner at the top says so, and says that this file carries no ground truth, so the scams-caught figure cannot be filled in. The ₹89,000 payment to "CYBER CELL VERIFICATION" was blocked at 90.4% — with no session context at all, from the amount, the new beneficiary, and the balance column showing it would have drained the account.</figcaption>
+</figure>
+
+<figure class="tall">
+  <img src="shots/console-imported-assessment-evidence.png" alt="Assessment of the imported blocked payment">
+  <figcaption>The assessment for that payment. Note <b>no ground truth</b> in the header line rather than "labelled legitimate": a file that never said anything about a payment has not called it legitimate, and the console does not put words in its mouth. Every session signal reads <b>quiet</b>, because a statement carries none of them — and the payment was still blocked on the receiving account's age, the amount against this payer's history, and the drain ratio, which used the statement's own balance column rather than an estimate.</figcaption>
+</figure>
+
+<p>To go back to the shipped corpus, press <strong>Back to the shipped corpus</strong> on either screen. Your imported file is kept in the browser, so a refresh no longer costs you the file you just mapped — see "Things that will confuse you".</p>
+
+<h3>Composing one payment</h3>
+
+<p>The importer answers "how does the engine behave on my data". The second tab answers the other question people ask at a demonstration: "what happens if I change this one thing?"</p>
+
+<figure>
+  <img src="shots/compose-presets.png" alt="The four starting points for a composed payment">
+  <figcaption>Four starting points, from an ordinary shop payment to a careful attacker who has turned off every indicator they control.</figcaption>
+</figure>
+
+<figure>
+  <img src="shots/compose-form.png" alt="Session context controls">
+  <figcaption>Every field the engine reads, as a control. Put the payer on a call, make it forty minutes, paste the identifier instead of choosing a contact, and watch the decision move.</figcaption>
+</figure>
+
+<div class="two-up">
+<figure>
+  <img src="shots/compose-decision.png" alt="The decision for a composed payment">
+  <figcaption>The decision, the scam risk, and the leading reason codes. <b>Open the full assessment</b> takes you to the complete evidence table.</figcaption>
+</figure>
+<figure>
+  <img src="shots/compose-api.png" alt="The same payment as an API request">
+  <figcaption>The same payment as the request body for <code>POST /api/v1/authorize</code>. The field you just changed on screen is the field an integrator would have to populate.</figcaption>
+</figure>
+</div>
+
+<p>Composed payments run through the real authorisation path, so they land in the feed and in the audit ledger like any other payment. Choose a payer from the feed to score against a real history; "someone with no history" is a legitimate thing to test, but amount deviation and time-of-day surprisal then have almost nothing to measure against.</p>
+
+<h2 class="break">The other six pages</h2>
+
+<p>The links across the top lead to six more screens. Each answers one question.</p>
+
+<h3>Policy — "what if we tuned it differently?"</h3>
+<figure>
+  <img src="shots/policy.png" alt="The policy studio">
+  <figcaption>The trade-off between stopping genuine customers and paying compensation, as prices a risk officer can move and as rate ceilings an operations team can set. Every candidate is priced against the scored population before it is applied, and applying it is written to the ledger.</figcaption>
+</figure>
+
+<h3>Trace — "where would the money have gone?"</h3>
+<figure>
+  <img src="shots/trace.png" alt="The mule chain trace">
+  <figcaption>For a stopped payment, the chain of accounts the money would have passed through and how recoverable it would have been at each point. Recoverability falls steeply with time: this is why stopping a payment beats chasing it.</figcaption>
+</figure>
+
+<h3>Audit — "prove none of this was altered afterwards"</h3>
+<figure>
+  <img src="shots/audit.png" alt="The audit trail">
+  <figcaption>Every decision is written to an append-only record where each entry carries a fingerprint of the one before it. Change any entry and every later fingerprint stops matching. The regulator's view: what was decided, when, under which model and which policy, with the evidence sealed in.</figcaption>
+</figure>
+
+<h3>Adversarial — "what happens when the fraudster adapts?"</h3>
+<figure>
+  <img src="shots/adversarial.png" alt="The adversarial report">
+  <figcaption>Six attacks run against three defences, all tuned to interrupt the same number of genuine customers so the comparison is fair. It includes the attacks the system is worst at.</figcaption>
+</figure>
+
+<h3>Portfolio — "how well does it actually do?"</h3>
+<figure>
+  <img src="shots/portfolio.png" alt="The portfolio report">
+  <figcaption>The scorecard over a held-out window the model never saw during fitting: detection, false positives, a breakdown by scam type, and how fast decisions are.</figcaption>
+</figure>
+
+<h3>Model — "what is inside it?"</h3>
+<figure>
+  <img src="shots/model.png" alt="The model card">
+  <figcaption>The model card: what it was fitted on, every signal with its weight, and the held-out figures. Generated from the committed artefacts, not written by hand.</figcaption>
+</figure>
+
+<h2 class="break">Glossary</h2>
+
+<dl class="kv">
+<dt>Scam risk <span class="small">p(fraud)</span></dt><dd>The engine's estimate that this payment is a scam, from under 0.001% to near 100%. Most payments sit far below 1%.</dd>
+<dt>Genuine payments stopped <span class="small">false positive rate</span></dt><dd>The share of legitimate payments that got interrupted. Every one is a real customer inconvenienced, so lower is better.</dd>
+<dt>Precision</dt><dd>Of the payments the system stopped, the share that really were scams. High precision means staff are not wading through false alarms.</dd>
+<dt>Money protected <span class="small">liability avoided</span></dt><dd>Money that would have been lost and not recovered, had the payment gone through. Counted conservatively.</dd>
+<dt>Mule account</dt><dd>An account that exists to receive scam money and pass it on quickly, often opened with a real person's stolen or rented identity.</dd>
+<dt>Hops</dt><dd>How many accounts the money has been forwarded through. More hops means less chance of freezing it in time.</dd>
+<dt>Step-up</dt><dd>The extra confirmation asked of a payer when a payment is held — chosen so the fraudster on the phone cannot simply relay it.</dd>
+<dt>Contribution <span class="small">nats, log-odds</span></dt><dd>How much one signal moved the verdict. Positive pushes toward scam, negative toward legitimate. They add up exactly to the total.</dd>
+<dt>Calibration</dt><dd>Whether the stated probabilities are honest. A well-calibrated 10% means it happens about one time in ten.</dd>
+<dt>Decision time <span class="small">latency p99</span></dt><dd>How long one decision takes. "p99" means 99 out of 100 were at least this fast — fairer than the average, which hides the slow ones.</dd>
+<dt>Ground truth</dt><dd>Whether the data says which payments really were scams. The shipped corpus has it throughout; your file may not, in which case accuracy is not reported at all.</dd>
+<dt>Quiet value</dt><dd>What the engine assumes for a session field your file did not supply: no call, typed identifier, trusted device. Each is the reading an attacker would want.</dd>
+</dl>
+
+<h2>Things that will confuse you</h2>
+
+<h4>Reloading the page resets the shipped replay — but keeps your file</h4>
+<p>The engine runs inside your browser tab. A full reload (F5) sets the shipped replay back to zero. If you had imported a file, that file and how far you had replayed it are kept in the browser and restored automatically. Moving between pages using the links at the top keeps everything either way.</p>
+
+<h4>The clock is not real time</h4>
+<p>Playback is measured in payments per second, not minutes. The shipped window covers about four hours of traffic, so the clock in the top right jumps forward much faster than a real one. With an imported file the clock follows the file's own timestamps.</p>
+
+<h4>The dates are in 2026</h4>
+<p>The synthetic dataset was generated with a 2026 window. Nothing is wrong with your computer.</p>
+
+<h4>Scams you inject do not change the score</h4>
+<p>Injected and composed payments are marked as such and excluded from the measured statistics. If they counted, anyone could inflate the detection rate by injecting twenty obvious scams.</p>
+
+<h4>"Scams caught" says "—" on your file</h4>
+<p>Your file has no ground-truth column, so the console does not know which payments were scams and will not guess. You still get every decision and every reason; you do not get a score for them.</p>
+
+<h4>Nothing happens for a long time</h4>
+<p>That is the correct behaviour, not a broken page. Scams are a small fraction of payments. Use the feed filter or inject a scenario if you want to see interventions immediately.</p>
+
+<h4>On a phone</h4>
+<div class="two-up">
+<figure class="phone">
+  <img src="shots/phone-console.png" alt="The console at phone width" style="width:100%">
+  <figcaption>The console at 390px. The layout folds to one column and the feed becomes one card per payment.</figcaption>
+</figure>
+<figure class="phone">
+  <img src="shots/phone-data.png" alt="The Your data screen at phone width" style="width:100%">
+  <figcaption>Your data at 390px. The mapping rows stack; nothing scrolls sideways except tables inside their own frame.</figcaption>
+</figure>
+</div>
+
+<h2 class="break">For whoever maintains it</h2>
+
+<h3>Where it lives</h3>
+<p>The site is hosted on Vercel at <strong>kreaton-upi.vercel.app</strong>, built from the <code>apps/web</code> folder of the repository. The code is on GitHub at <strong>junekashif/Kreaton</strong>; the submission copy is <strong>Cognitia-IEM/KREATON</strong>. Pushing to the main branch runs the checks and, if they pass, redeploys.</p>
+
+<h3>The API</h3>
+<pre>GET  /api/v1/health            model and policy digests, ledger head, persistence status
+GET  /api/v1/authorize         a complete example request body
+POST /api/v1/authorize         authorise one payment
+POST /api/v1/authorize/batch   authorise an ordered run, state carrying forward
+POST /api/v1/import            match a file's columns and report; optionally replay it</pre>
+
+<figure class="half">
+  <img src="shots/api-health.png" alt="The health endpoint">
+  <figcaption><code>/api/v1/health</code> on the live site. The <b>persistence</b> block says where decisions are being kept — <b>memory</b> when nothing durable is configured, <b>google-sheets</b> when the audit record is being copied to a spreadsheet, with counts of rows written, failed and dropped.</figcaption>
+</figure>
+
+<h3>Where decisions are kept</h3>
+<p>The engine holds its working state in memory, because an authorisation has a budget of a few milliseconds. Durability sits behind that: after each decision has been returned, the sealed audit record, the payment and any hold are copied to a Google Sheet, in batches, so a judge or an auditor can open the record in a browser without being given a query tool. If the copy fails the decision is unaffected; the health endpoint shows <code>failed</code> and <code>dropped</code> counts and the last error. Setup — one service account, one shared spreadsheet, two environment variables — is in <code>docs/PERSISTENCE.md</code>.</p>
+
+<h3>The GitHub secrets</h3>
+<table>
+<thead><tr><th>Secret</th><th>What it is</th><th>Sensitive?</th></tr></thead>
+<tbody>
+<tr><td><code>VERCEL_TOKEN</code></td><td>Proves "this machine may deploy to our Vercel account".</td><td>Yes. Anyone holding it can deploy to or delete the account's projects.</td></tr>
+<tr><td><code>VERCEL_ORG_ID</code></td><td>Which Vercel account the project belongs to.</td><td>Not really — an identifier, not a key.</td></tr>
+<tr><td><code>VERCEL_PROJECT_ID</code></td><td>Which project within that account.</td><td>Not really.</td></tr>
+</tbody>
+</table>
+<p>They are stored as secrets rather than written into the code because everything in the repository is readable by anyone. Without them the deploy job skips itself and the site stays up as it was; you deploy by hand with <code>vercel deploy --prod</code> from the repository root. On Windows do not run <code>vercel build</code> first — it creates symbolic links, which Windows refuses without Developer Mode.</p>
+
+<p class="small" style="margin-top:12mm;border-top:1px solid var(--rule);padding-top:3mm">Built by Team Kreaton for COGNITIA 2026, problem statement FINTECH-PS2. All payments, payers and scams shown are synthetic unless you supplied them. Screenshots in this guide were taken from the live console on 12 September 2026.</p>
+
+</body>
+</html>
