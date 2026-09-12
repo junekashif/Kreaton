@@ -124,6 +124,28 @@ Values are written with `valueInputOption=RAW`. Under Sheets' usual
 like a date and a reason code starting with a minus would all be silently
 reinterpreted, and the copy would stop matching the ledger it came from.
 
+### Serverless, and the one thing that bit
+
+The sink flushes on a timer. On a long-lived process that is the right shape;
+on Vercel it is the wrong one, because the instance is frozen the moment the
+response goes out, and a flush that fires afterwards starts a TLS handshake to
+Google that never completes. The first production run reported, every time:
+
+> fetch failed (Client network socket disconnected before secure TLS connection was established)
+
+and wrote nothing. `persistAfterResponse()` in `apps/web/lib/server-engine.ts`
+fixes it with `waitUntil` from `@vercel/functions`, which keeps the instance
+alive until the flush settles without delaying the response — exactly the
+write-behind contract. Every route that produces a decision calls it. The sink
+itself stays platform-agnostic; that function is the only place that knows it
+is on Vercel.
+
+A consequence worth knowing: the counters in `/api/v1/health` are **per
+instance**. The request that reads them may land on an instance other than the
+one that just flushed, so `written: 0` there is not evidence that nothing was
+written. The sheet is the source of truth; the health endpoint is a signal, and
+`lastError` is the field that matters.
+
 ## 5. The quota, and why everything is batched
 
 Google allows roughly **sixty write requests per minute per user**. A replay at

@@ -293,10 +293,13 @@ python analysis/sensitivity.py
 
 None block the submission.
 
-- **The Sheets sink is wired up locally but not on the deployment.** `apps/web/.env.local`
-  holds the credentials for local work and is gitignored. The live site still reports
-  `backing: memory` until `vercel env add KREATON_SHEETS_ID` and
-  `vercel env add KREATON_SERVICE_ACCOUNT_JSON` are run for production.
+- **The Sheets sink is live on production.** Set through `vercel env add` for the production
+  environment (`KREATON_SHEETS_ID`, `KREATON_SERVICE_ACCOUNT_JSON` as sensitive,
+  `KREATON_SHEETS_FLUSH_MS`), then redeployed. A decision made against
+  kreaton-upi.vercel.app was read back out of the spreadsheet. Two failures on the way, both
+  recorded in `docs/PERSISTENCE.md`: `vercel deploy` must run from the repository root
+  because the project's Root Directory is `apps/web`; and the timer-based flush never
+  completed on a frozen instance until the routes called `waitUntil`.
 - **The service account key currently in use should be rotated.** It was handled outside a
   secret store during setup. In IAM & Admin, Service Accounts, open the Kreaton sheet-writer
   account, Keys: delete that key, create a new one, and update `.env.local` and the Vercel

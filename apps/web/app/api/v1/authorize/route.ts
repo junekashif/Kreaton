@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { challengePrompt } from '@kreaton/core';
-import { exampleTransaction, getServerEngine, parseTransaction } from '../../../../lib/server-engine';
+import { exampleTransaction, getServerEngine, persistAfterResponse, parseTransaction } from '../../../../lib/server-engine';
 
 /**
  * POST /api/v1/authorize
@@ -27,6 +27,7 @@ export async function POST(request: Request): Promise<Response> {
   try {
     const result = engine.authorize(txn);
     const a = result.assessment;
+    persistAfterResponse();
     return NextResponse.json({
       txnId: a.txnId,
       decision: a.decision,

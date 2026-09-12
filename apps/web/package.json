@@ -15,11 +15,12 @@
   },
   "dependencies": {
     "@kreaton/core": "1.0.0",
+    "@kreaton/ingest": "1.0.0",
+    "@kreaton/sheets": "1.0.0",
+    "@vercel/functions": "^3.9.7",
     "next": "16.3.4",
     "react": "19.2.8",
-    "react-dom": "19.2.8",
-    "@kreaton/ingest": "1.0.0",
-    "@kreaton/sheets": "1.0.0"
+    "react-dom": "19.2.8"
   },
   "devDependencies": {
     "@kreaton/sim": "1.0.0",

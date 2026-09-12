@@ -1,6 +1,7 @@
 import { DEFAULT_POLICY, Interceptor, MemoryStore, RecoveryModel } from '@kreaton/core';
 import type { PersistenceSink, Transaction } from '@kreaton/core';
 import { GoogleSheetsSink, credentialsFromJson } from '@kreaton/sheets';
+import { waitUntil } from '@vercel/functions';
 import { MODEL } from './artefacts';
 
 /**
@@ -56,6 +57,33 @@ function buildSink(): GoogleSheetsSink | null {
 export function getSink(): GoogleSheetsSink | null {
   if (globalRef.__kreatonSink === undefined) globalRef.__kreatonSink = buildSink();
   return globalRef.__kreatonSink;
+}
+
+/**
+ * Let the durable write finish after the response has gone out.
+ *
+ * The sink flushes on a timer, which is the right design on a long-lived
+ * process and the wrong one on a serverless instance: the moment a response
+ * is returned the instance is frozen, and a flush that fires afterwards
+ * starts a TLS handshake to Google that never completes. The first
+ * production run showed exactly that — "socket disconnected before secure
+ * TLS connection was established", every time, with nothing ever written.
+ *
+ * `waitUntil` keeps the instance alive until the promise settles without
+ * delaying the response, which is precisely the shape the write-behind
+ * contract wants. Call it at the end of any route that produced a decision.
+ * The sink itself stays platform-agnostic; this is the only place that
+ * knows it is running on Vercel.
+ */
+export function persistAfterResponse(): void {
+  const sink = globalRef.__kreatonSink;
+  if (!sink) return;
+  try {
+    waitUntil(sink.flush());
+  } catch {
+    // Outside a Vercel request context (local `next dev`, tests) there is
+    // nothing to extend; the timer-based flush still runs there.
+  }
 }
 
 export function getServerEngine(): Interceptor {

@@ -327,7 +327,12 @@ export class GoogleSheetsSink implements PersistenceSink {
   }
 
   private note(error: unknown): void {
-    this.lastError = error instanceof Error ? error.message : String(error);
+    // `fetch failed` on its own says nothing. The reason is on `cause`, and
+    // on a serverless platform that is where the useful part lives: a DNS
+    // refusal, a TLS problem, or a socket closed under an instance that was
+    // frozen mid-request.
+    const cause = error instanceof Error && error.cause instanceof Error ? ` (${error.cause.message})` : '';
+    this.lastError = (error instanceof Error ? error.message : String(error)) + cause;
     try {
       this.onError(error);
     } catch {

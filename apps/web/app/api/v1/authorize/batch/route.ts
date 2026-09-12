@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getServerEngine, parseTransaction } from '../../../../../lib/server-engine';
+import { getServerEngine, persistAfterResponse, parseTransaction } from '../../../../../lib/server-engine';
 
 /**
  * POST /api/v1/authorize/batch
@@ -89,6 +89,7 @@ export async function POST(request: Request): Promise<Response> {
     if (d) counts[d] = (counts[d] ?? 0) + 1;
   }
 
+  persistAfterResponse();
   return NextResponse.json({
     submitted: items.length,
     authorised,
