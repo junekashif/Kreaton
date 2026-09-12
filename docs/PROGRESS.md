@@ -2,7 +2,7 @@
 
 **Project:** COGNITIA 2026, FINTECH-PS2 — real-time APP fraud interceptor and mule-chain tracer.
 **Author:** Team Kreaton.
-**Last updated:** 2026-09-12 (session 4).
+**Last updated:** 2026-09-12 (session 5).
 
 This file records where the build stands so work can resume without re-deriving
 decisions. It ships with the repository on purpose: the calibration bug in session 2 and
@@ -26,12 +26,14 @@ Everything in the original scope is built and verified:
 
 | Area | State |
 | --- | --- |
-| `packages/core` engine | complete, 46 tests pass, typechecks |
-| `packages/sim` | complete, plus `gate.ts`, `paysim.ts`, `modelcard.ts`, barrel `index.ts` |
-| `apps/web` console | complete: `/`, `/policy`, `/trace`, `/trace/[txnId]`, `/audit`, `/adversarial`, `/portfolio`, `/model`, `POST /api/v1/authorize`, `GET /api/v1/health`. Lint clean, `next build` clean, verified from a cold clone |
+| `packages/core` engine | complete, 51 tests pass, typechecks |
+| `packages/sim` | complete, plus `gate.ts`, `paysim.ts`, `modelcard.ts`, `ingest.ts`, barrel `index.ts` |
+| `packages/ingest` | complete, 31 tests, zero dependencies |
+| `packages/sheets` | complete, 22 tests; verified end to end against the real Sheets API |
+| `apps/web` console | complete: `/`, `/data`, `/policy`, `/trace`, `/trace/[txnId]`, `/audit`, `/adversarial`, `/portfolio`, `/model`, `POST /api/v1/authorize`, `POST /api/v1/authorize/batch`, `POST /api/v1/import`, `GET /api/v1/health`. Lint clean, `next build` clean, verified from a cold clone |
 | `.github/workflows` | `ci.yml` (typecheck, lint, tests, gate, build) and `deploy.yml` (preflight, verify, `vercel build`, `vercel deploy --prebuilt --prod`, authenticated smoke test) |
 | `analysis/` | `crosscheck.py` (10/10 checks pass against sklearn), `sensitivity.py` (writes `docs/SENSITIVITY.md`) |
-| Docs | `README.md` (links the live console), `LICENSE` (MIT, Team Kreaton), `docs/MODELING.md`, `docs/MODEL_CARD.md` (generated), `docs/SENSITIVITY.md` (generated) |
+| Docs | `README.md` (links the live console), `LICENSE` (MIT, Team Kreaton), `docs/MODELING.md`, `docs/MODEL_CARD.md` (generated), `docs/SENSITIVITY.md` (generated), `docs/DATA_INPUT.md`, `docs/PERSISTENCE.md` |
 | Artefacts | `data/{model,fit,metrics,portfolio,adversarial,adversarial-liability_first}.json`, `apps/web/public/data/{model,slice}.json` |
 
 ## Agreed stack decisions (unchanged)
@@ -185,16 +187,104 @@ Everything below was verified by running it, not by reading it.
    minimum; the only platform-specific packages are esbuild's per-OS binaries, which npm
    selects automatically.
 
+## Session 5: your own data, and somewhere for it to go
+
+The question that prompted this was direct: can we feed in our own dataset, are the UPI
+parameters real, can it take real payments, and can a database hold the
+name/credit/debit/amount rows. The honest answers before this session were: only through a
+one-off PaySim CLI adapter, the schema is real but every value is synthetic, no, and no.
+Three of the four have answers now; real payment rails still do not, and the API is the
+integration surface for that rather than a connection to one.
+
+1. **`packages/ingest`, a new zero-dependency package.** Delimited and JSON reading, column
+   matching against the twenty-eight fields the engine can use, coercion, and the construction
+   of ordered transactions. The same code runs in the browser tab, the route handler and the
+   CLI. 31 tests.
+   - Delimiter sniffed by *consistency* rather than frequency, so a narration column full of
+     commas does not fool it. Quoted fields, embedded newlines, doubled quotes, a BOM.
+   - Amounts: Indian and Western grouping, currency symbols, Dr/Cr markers, accounting
+     parentheses. The sign is dropped, because direction is a separate field.
+   - Timestamps: epoch ms and seconds, ISO, dd/mm, mm/dd, PaySim step hours. Where the order
+     is genuinely ambiguous the assumed convention is *stated*, not picked silently.
+2. **A bank statement works**, which was the shape actually asked about. Two substitutions
+   make it possible and both are reported: with no payer column the whole file is read as one
+   account holder, and with no beneficiary number the narration folded to a stable slug
+   becomes the identity, so RAMESH TRADERS, Ramesh Traders and UPI/RAMESH TRADERS. are one
+   beneficiary. That is what makes the payee-graph signals work on a statement at all. Only
+   the amount is genuinely required.
+3. **The report is the feature, not the importer.** Almost no real file carries UPI session
+   context, and without it the engine is in the suppressed-indicator position from the
+   adversarial suite, its weakest. Every route says so beside the number. The report also
+   names each field left at its quiet value (marked with a dot in the mapping itself), each
+   harmless substitution, rows dropped by reason, unreadable cells by column with examples,
+   and structural limits: beneficiaries that never repeat, payers with no history. An
+   unlabelled file gets no accuracy figure at all.
+4. **`/data` in the console**, two tabs. A file: drop it, confirm the mapping, see the first
+   rows as the engine will read them, read the report, replay. A single payment: compose one
+   by hand from four presets, with the equivalent POST /api/v1/authorize body beside it. The
+   console page carries a banner whenever an imported file is loaded, because every counter on
+   it is then measured on that file.
+5. **One real honesty bug found doing this.** The assessment panel printed "labelled
+   legitimate" for every payment without a fraud label. A file with no ground-truth column
+   never said a payment was legitimate; it said nothing. It reads "no ground truth" now.
+6. **A core change, with tests.** `PayerProfile.observedBalancePaise` is used by the
+   drain-ratio signal in preference to the spend-based estimate when an institution actually
+   has a balance, which an imported statement does. Previously the balance column would have
+   been read and silently discarded, since `updatePayerProfile` recomputes the proxy from
+   spend on every payment. The evidence line now says which of the two it used. 5 tests; the
+   16-check gate still passes unchanged.
+7. **`POST /api/v1/authorize/batch` and `POST /api/v1/import`.** The batch endpoint is not a
+   loop around the single one: the structuring window, hold linkage and every baseline carry
+   forward, so a run scored together gives different and correct answers. A bad row is
+   reported in place rather than losing the run. `/api/v1/import` replays on a *scratch*
+   engine, because a file sent to be understood must not leave its payers and ledger entries
+   in the live one.
+8. **`npm run ingest`**, unbounded, with the full model-card metric set (ROC AUC, PR AUC, KS,
+   Brier, ECE, recall at fixed FPR ceilings) when the file has labels. The root script needed
+   a trailing `--` to forward arguments through `npm -w`; the same latent bug affects
+   `npm run adversarial -- --policy=...` and was fixed for `ingest` only.
+9. **Persistence, both halves.** In the browser, the imported dataset and the replay position
+   go to IndexedDB, so a refresh no longer costs the file you just mapped. Verified with a
+   hard reload. Engine state is *not* stored: replay is deterministic, so restoring the file
+   and the cursor reproduces it for a fraction of the complexity.
+10. **`packages/sheets`**, the durable half. A `PersistenceSink` writing the sealed ledger, the
+    payments and the holds to a Google Sheet. Service-account JWT signed with `node:crypto`,
+    no `googleapis` dependency. Batched, because Google allows about 60 writes a minute and a
+    replay at 60/s would exhaust that in one second. Retryable failures (429, 5xx) keep their
+    rows; a 403, which is what a sheet not shared with the service account returns, lets them
+    go rather than accumulating behind an error that will never clear. Queue bounded at 20,000
+    rows. Profiles are deliberately *not* written: hot state, reconstructible, and copying them
+    would spend the whole quota. 22 tests against a fake transport, so no credentials or
+    network are needed.
+11. **Then it was run against the real Sheets API, and the fake had hidden a bug.**
+    `LedgerEntry` is a discriminated union: on an ASSESSMENT the payment, the decision and
+    the probability sit under `entry.assessment`, not at the top level, and the sink read
+    them off the entry directly. The unit tests passed because their fixture invented a flat
+    shape the engine never emits, so the real ledger tab came out with four empty columns on
+    every decision. Fixtures are built from the real union now, with a test per entry kind.
+    A fake transport verifies the transport; it cannot verify an assumption about the data.
+    Verified live after the fix: token exchange, tab creation, batched appends, and a
+    read-back confirming a 64-digit hash survives byte for byte, which is exactly what the
+    RAW write mode exists for. Credentials are in `apps/web/.env.local`, gitignored.
+12. **Docs.** `docs/DATA_INPUT.md` and `docs/PERSISTENCE.md`, plus README sections. Runnable
+    samples in `data/samples/`.
+
+Verified by running: 104 tests pass (was 46), typecheck and lint clean, `next build` clean, the
+16-check gate passes, both new endpoints exercised with curl, and the console import driven end
+to end in a browser - a bank statement's 89,000 rupee scam payment blocked at 90.4% with the
+drain ratio computed from the file's own balance column.
+
 ## Resume checklist
 
 ```bash
 cd C:/D/Kreaton
 npm install
-npm run typecheck && npm run lint && npm test
+npm run typecheck && npm run lint && npm test     # 104 tests
 npm run gate                     # 16 checks, ~1 min
-npm run dev                      # console on :3000
+npm run dev                      # console on :3000, /data for your own files
 npm run artefacts                # seed, evaluate, adversarial, model card (~6 min)
 npm run adversarial -- --policy=liability_first
+npm run ingest -- --file=data/samples/upi-log-sample.csv
 npm run seed -- --export && python analysis/crosscheck.py
 python analysis/sensitivity.py
 ```
@@ -203,6 +293,22 @@ python analysis/sensitivity.py
 
 None block the submission.
 
+- **The Sheets sink is wired up locally but not on the deployment.** `apps/web/.env.local`
+  holds the credentials for local work and is gitignored. The live site still reports
+  `backing: memory` until `vercel env add KREATON_SHEETS_ID` and
+  `vercel env add KREATON_SERVICE_ACCOUNT_JSON` are run for production.
+- **The service account key currently in use should be rotated.** It was handled outside a
+  secret store during setup. In IAM & Admin, Service Accounts, open the Kreaton sheet-writer
+  account, Keys: delete that key, create a new one, and update `.env.local` and the Vercel
+  environment. Nothing else about the setup changes. The account's address and the
+  spreadsheet id are deliberately not recorded in this repository, which is public.
+- **The spreadsheet holds probe rows** from the verification run (`probe_1` to `probe_3`,
+  `sheets_probe_*`, `fixed_probe_*`), including one ledger row written before the union bug
+  was fixed, which is why its txnId, decision and probability columns are blank. Clear the
+  three tabs before using the sheet for anything real.
+- **Real payment rails are not connected and nothing moves money.** `POST /api/v1/authorize`
+  is the integration surface a PSP would call in the authorisation path; there is no
+  connection to NPCI, a switch, or any provider sandbox.
 - **PaySim** has not been run on real data (no Kaggle download in this environment). The
   adapter's code path was smoke-tested with a throwaway file in PaySim's format, which was
   deleted. Results on the real file should go in `data/paysim-metrics.json` and be mentioned in

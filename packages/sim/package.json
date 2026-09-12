@@ -24,9 +24,11 @@
     "adversarial": "tsx src/scripts/adversarial.ts",
     "gate": "tsx src/scripts/gate.ts",
     "paysim": "tsx src/scripts/paysim.ts",
-    "modelcard": "tsx src/scripts/modelcard.ts"
+    "modelcard": "tsx src/scripts/modelcard.ts",
+    "ingest": "tsx src/scripts/ingest.ts"
   },
   "dependencies": {
-    "@kreaton/core": "1.0.0"
+    "@kreaton/core": "1.0.0",
+    "@kreaton/ingest": "1.0.0"
   }
 }

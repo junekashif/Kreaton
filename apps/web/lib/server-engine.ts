@@ -1,5 +1,6 @@
 import { DEFAULT_POLICY, Interceptor, MemoryStore, RecoveryModel } from '@kreaton/core';
-import type { Transaction } from '@kreaton/core';
+import type { PersistenceSink, Transaction } from '@kreaton/core';
+import { GoogleSheetsSink, credentialsFromJson } from '@kreaton/sheets';
 import { MODEL } from './artefacts';
 
 /**
@@ -12,14 +13,58 @@ import { MODEL } from './artefacts';
  * nothing in the route depends on which one is in use.
  */
 
-const globalRef = globalThis as unknown as { __kreatonEngine?: Interceptor };
+const globalRef = globalThis as unknown as {
+  __kreatonEngine?: Interceptor;
+  __kreatonSink?: GoogleSheetsSink | null;
+};
+
+/**
+ * The durable sink, when this deployment has been given one.
+ *
+ * Two environment variables turn it on, and their absence is the normal case:
+ * without them the engine behaves exactly as before, with its state in memory
+ * for the life of the instance. docs/PERSISTENCE.md has the setup.
+ *
+ *   KREATON_SHEETS_ID              the spreadsheet id from its URL
+ *   KREATON_SERVICE_ACCOUNT_JSON   the service account key file, as JSON
+ *
+ * Construction is deliberately tolerant. A malformed key should leave the
+ * interceptor running and unpersisted, with a line in the log, rather than
+ * taking the authorisation endpoint down with it.
+ */
+function buildSink(): GoogleSheetsSink | null {
+  const spreadsheetId = process.env.KREATON_SHEETS_ID;
+  const key = process.env.KREATON_SERVICE_ACCOUNT_JSON;
+  if (!spreadsheetId || !key) return null;
+  try {
+    const sink = new GoogleSheetsSink({
+      credentials: credentialsFromJson(key),
+      spreadsheetId,
+      flushIntervalMs: Number(process.env.KREATON_SHEETS_FLUSH_MS ?? 5_000),
+    });
+    // Create the tabs up front so the first decision is not also the first
+    // schema change. A failure here is logged by the sink and retried later.
+    void sink.start().catch(() => {});
+    return sink;
+  } catch (error) {
+    console.error('[kreaton] Sheets persistence is configured but unusable:', error);
+    return null;
+  }
+}
+
+/** The sink in force, or null when this deployment has none. */
+export function getSink(): GoogleSheetsSink | null {
+  if (globalRef.__kreatonSink === undefined) globalRef.__kreatonSink = buildSink();
+  return globalRef.__kreatonSink;
+}
 
 export function getServerEngine(): Interceptor {
   if (!globalRef.__kreatonEngine) {
+    const sink = getSink() as PersistenceSink | null;
     globalRef.__kreatonEngine = new Interceptor({
       model: MODEL,
       policy: DEFAULT_POLICY,
-      store: new MemoryStore(),
+      store: new MemoryStore(sink ?? undefined),
       recovery: new RecoveryModel({
         params: MODEL.recovery,
         freezeLatencyMinutes: DEFAULT_POLICY.freezeLatencyMinutes,

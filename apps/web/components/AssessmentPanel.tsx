@@ -6,6 +6,7 @@ import type { Action, HoldRecord } from '@kreaton/core';
 import type { Decision } from '../lib/session';
 import { ACTION_LABEL, formatINR, istClock, istDateTime, prob, signed } from '../lib/format';
 import { riskColor } from '../lib/risk';
+import { useSession } from '../lib/use-session';
 import { DecisionTag } from './DecisionTag';
 import { RecoveryCurve } from './RecoveryCurve';
 
@@ -26,6 +27,10 @@ export function AssessmentPanel({
 }) {
   const { txn, result } = decision;
   const a = result.assessment;
+  const { snap } = useSession();
+  // The generated corpus is labelled throughout; an imported file may carry no
+  // ground truth at all.
+  const labelled = snap.dataset.kind === 'shipped' || snap.dataset.report?.labelled === true;
   const ordered = [...a.signals].sort((x, y) => Math.abs(y.contribution) - Math.abs(x.contribution));
   const maxAbs = Math.max(0.5, ...ordered.map((s) => Math.abs(s.contribution)));
   const sum = a.signals.reduce((s, x) => s + x.contribution, 0);
@@ -47,7 +52,14 @@ export function AssessmentPanel({
           <div className="tiny faint mono">
             {txn.txnId} · {istDateTime(txn.ts)} · {txn.channel} · device {txn.deviceId}
             {decision.injected ? ` · injected scenario ${decision.injected}` : ''}
-            {txn.label.isFraud ? ` · labelled ${txn.label.typology ?? 'fraud'}` : ' · labelled legitimate'}
+            {/* A dataset with no ground-truth column never said this payment was
+                legitimate; it said nothing. Printing "labelled legitimate" there
+                would be asserting the file's silence as a fact. */}
+            {labelled
+              ? txn.label.isFraud
+                ? ` · labelled ${txn.label.typology ?? 'fraud'}`
+                : ' · labelled legitimate'
+              : ' · no ground truth'}
           </div>
         </div>
         <div className="stat" style={{ textAlign: 'right', padding: 0 }}>

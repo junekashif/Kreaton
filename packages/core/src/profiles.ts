@@ -134,11 +134,13 @@ export function updatePayerProfile(profile: PayerProfile, txn: Transaction): Pay
     dailyCountMean: perDay.reduce((a, b) => a + b, 0) / activeDays,
     dailyCountSd: sd(perDay),
     dailyValueMean,
-    balanceProxyPaise: Math.max(
-      dailyValueMean * BALANCE_PROXY_MULTIPLE,
-      profile.maxAmountPaise,
-      txn.amountPaise,
-    ),
+    // An observed balance beats an estimate inferred from spend. It is
+    // carried forward untouched so a caller that sets it per payment keeps
+    // control of it, and cleared by nothing here.
+    balanceProxyPaise:
+      profile.observedBalancePaise !== undefined && profile.observedBalancePaise > 0
+        ? profile.observedBalancePaise
+        : Math.max(dailyValueMean * BALANCE_PROXY_MULTIPLE, profile.maxAmountPaise, txn.amountPaise),
     recentLogAmounts,
     hourCounts,
     dailyCounts,

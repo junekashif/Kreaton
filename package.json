@@ -14,12 +14,12 @@
   },
   "scripts": {
     "build": "npm run build:packages && npm run build -w @kreaton/web",
-    "build:packages": "tsc -b packages/core packages/sim",
+    "build:packages": "tsc -b packages/core packages/ingest packages/sheets packages/sim",
     "dev": "npm run build:packages && npm run dev -w @kreaton/web",
     "test": "vitest run",
     "test:watch": "vitest",
     "coverage": "vitest run --coverage",
-    "typecheck": "tsc -b packages/core packages/sim && npm run typecheck -w @kreaton/web",
+    "typecheck": "tsc -b packages/core packages/ingest packages/sheets packages/sim && npm run typecheck -w @kreaton/web",
     "lint": "npm run lint -w @kreaton/web",
     "seed": "npm run seed -w @kreaton/sim",
     "evaluate": "npm run evaluate -w @kreaton/sim",
@@ -27,7 +27,8 @@
     "gate": "npm run gate -w @kreaton/sim",
     "artefacts": "npm run seed && npm run evaluate && npm run adversarial && npm run modelcard",
     "paysim": "npm run paysim -w @kreaton/sim",
-    "modelcard": "npm run modelcard -w @kreaton/sim"
+    "modelcard": "npm run modelcard -w @kreaton/sim",
+    "ingest": "npm run ingest -w @kreaton/sim --"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

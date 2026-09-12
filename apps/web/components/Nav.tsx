@@ -7,6 +7,7 @@ import { istClock } from '../lib/format';
 
 const ITEMS = [
   { href: '/', label: 'Console' },
+  { href: '/data', label: 'Your data' },
   { href: '/policy', label: 'Policy' },
   { href: '/trace', label: 'Trace' },
   { href: '/audit', label: 'Audit' },

@@ -1,0 +1,11 @@
+txn_id,timestamp,payer,payee,payee_name,amount,entry_method,on_call,call_seconds,app_switches,seconds_to_pay,new_device,onward_velocity,is_fraud
+t1,2026-04-01T09:12:00Z,ravi.k,kirana.store,SHREE KIRANA,480,qr,false,0,1,22,false,0.05,0
+t2,2026-04-01T19:40:00Z,ravi.k,landlord.hdfc,S IYER,18000,contact,false,0,2,31,false,0.10,0
+t3,2026-04-02T08:55:00Z,ravi.k,kirana.store,SHREE KIRANA,610,qr,false,0,1,18,false,0.05,0
+t4,2026-04-02T13:20:00Z,meena.s,kirana.store,SHREE KIRANA,300,qr,false,0,1,25,false,0.05,0
+t5,2026-04-03T11:05:00Z,ravi.k,petrol.pump,HP PETROL,2200,qr,false,0,1,20,false,0.04,0
+t6,2026-04-03T18:32:00Z,meena.s,school.fees,ST XAVIERS SCHOOL,15000,contact,false,0,3,44,false,0.02,0
+t7,2026-04-04T21:58:00Z,ravi.k,verify.cell,CYBER CELL VERIFICATION,185000,pasted,true,2700,7,14,false,0.94,1
+t8,2026-04-05T10:20:00Z,meena.s,kirana.store,SHREE KIRANA,340,qr,false,0,1,23,false,0.05,0
+t9,2026-04-05T22:10:00Z,meena.s,refund.desk,REFUND PROCESSING DESK,96000,pasted,true,1500,9,11,true,0.88,1
+t10,2026-04-06T09:02:00Z,ravi.k,kirana.store,SHREE KIRANA,520,qr,false,0,1,19,false,0.05,0

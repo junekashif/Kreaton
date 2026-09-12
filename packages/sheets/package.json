@@ -1,0 +1,26 @@
+{
+  "name": "@kreaton/sheets",
+  "version": "1.0.0",
+  "description": "Durable, batched write-behind persistence of the audit ledger to a Google Sheet.",
+  "author": "Team Kreaton",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "rm -rf dist *.tsbuildinfo"
+  },
+  "dependencies": {
+    "@kreaton/core": "1.0.0"
+  }
+}

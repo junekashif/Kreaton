@@ -144,6 +144,17 @@ export interface PayerProfile {
    * Estimated as a multiple of observed spend, not a real balance read.
    */
   balanceProxyPaise: Paise;
+  /**
+   * A balance the institution actually observed, when one is available.
+   *
+   * The proxy above exists because a sending PSP scoring its own customer
+   * usually cannot read the balance at authorisation time. When it can — an
+   * on-us payment, or an imported statement that carries a running balance —
+   * the observed figure is strictly better than an estimate inferred from
+   * spend, and the drain-ratio signal uses it in preference. Left undefined
+   * the behaviour is unchanged.
+   */
+  observedBalancePaise?: Paise;
 
   // --- Incremental maintenance state -------------------------------------
   // These back the derived statistics above. They are bounded rather than

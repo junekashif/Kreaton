@@ -240,11 +240,14 @@ const velocityBurst: Extractor = (txn, ctx) => {
 };
 
 const drainRatio: Extractor = (txn, ctx) => {
-  const available = Math.max(ctx.payer.balanceProxyPaise, 1);
+  const observed = ctx.payer.observedBalancePaise;
+  const measured = observed !== undefined && observed > 0;
+  const available = Math.max(measured ? observed : ctx.payer.balanceProxyPaise, 1);
   const raw = txn.amountPaise / available;
-  const evidence =
-    `${formatINR(txn.amountPaise)} is ${(raw * 100).toFixed(0)}% of estimated available funds ` +
-    `(${formatINR(available)}, inferred from spending history rather than a balance read).`;
+  const source = measured
+    ? `${formatINR(available)}, an observed balance`
+    : `${formatINR(available)}, inferred from spending history rather than a balance read`;
+  const evidence = `${formatINR(txn.amountPaise)} is ${(raw * 100).toFixed(0)}% of available funds (${source}).`;
   return { raw, evidence };
 };
 

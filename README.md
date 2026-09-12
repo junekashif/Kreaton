@@ -23,11 +23,13 @@ from a recording.
 | Path | What it is |
 | --- | --- |
 | `packages/core` | The engine: signals, fusion, calibration, recoverability, expected-cost decisioning, hold protocol, audit ledger. No dependencies. |
-| `packages/sim` | Corpus generator, chronological replay, fitter, metrics, portfolio report, adversarial suite, PaySim adapter, model card generator. |
-| `apps/web` | The console: live interception ribbon, policy studio, mule chain trace, compliance trail, adversarial and portfolio reports, model card, and `POST /api/v1/authorize`. |
+| `packages/sim` | Corpus generator, chronological replay, fitter, metrics, portfolio report, adversarial suite, PaySim adapter, model card generator, dataset importer CLI. |
+| `packages/ingest` | Dataset import: delimited and JSON reading, column matching, coercion, and the report of what a file cannot supply. No dependencies. |
+| `packages/sheets` | Durable write-behind persistence of the audit trail to a Google Sheet. No dependencies beyond Node's crypto. |
+| `apps/web` | The console: live interception ribbon, policy studio, mule chain trace, compliance trail, adversarial and portfolio reports, model card, your-own-data import, and the authorisation API. |
 | `analysis` | Python cross-check of the hand-written statistics against NumPy, SciPy and scikit-learn, and the policy sensitivity analysis. |
 | `data` | Committed artefacts: fitted model, fit diagnostics, held-out metrics, portfolio report, adversarial results, and the replay slice the console uses. |
-| `docs` | `MODELING.md` (why each choice was made), `MODEL_CARD.md` (generated from the artefacts), `SENSITIVITY.md` (generated). |
+| `docs` | `MODELING.md` (why each choice was made), `MODEL_CARD.md` (generated from the artefacts), `SENSITIVITY.md` (generated), `DATA_INPUT.md` (bringing your own dataset), `PERSISTENCE.md` (where state lives). |
 | `.github/workflows` | `ci.yml` runs typecheck, lint, tests, the model quality gate and a production build; `deploy.yml` builds with the Vercel CLI and ships the prebuilt output. |
 
 ## Requirements coverage
@@ -44,6 +46,8 @@ from a recording.
 | Adversarial countermeasure evaluation | `packages/sim/src/adversary.ts` and `/adversarial` — six attacks against three defences at matched friction, with ablations |
 | Portfolio risk reporting | `packages/sim/src/report.ts` and `/portfolio` — held-out replay with ground truth, liability avoided net of recovery, per-typology detection |
 | Justified modelling choices | `docs/MODELING.md`, `docs/MODEL_CARD.md`, `docs/SENSITIVITY.md`, `analysis/crosscheck.py` |
+| Evaluation on data you supply | `packages/ingest` and `/data` — CSV, TSV or JSON in the console, the API or the CLI, each reporting what the file cannot show; `docs/DATA_INPUT.md` |
+| Durable record of decisions | `packages/sheets` and `PersistenceSink` — the sealed ledger written to a Google Sheet behind the decision path; `docs/PERSISTENCE.md` |
 
 ## Running it
 
@@ -51,11 +55,14 @@ Node 20.9 or later. Python 3.11 or later with NumPy, SciPy, pandas and scikit-le
 
 ```bash
 npm install
-npm run typecheck          # engine, simulation and console
-npm test                   # 46 unit tests on the engine
+npm run typecheck          # engine, importer, sheets sink, simulation and console
+npm test                   # 104 unit tests
 npm run gate               # model quality gate on a reduced corpus, as run in CI
 npm run dev                # console at http://localhost:3000
 ```
+
+Nothing above needs a network, a database or an API key. The console runs the real engine in the
+browser tab against a committed slice, so `npm run dev` is enough to see every screen working.
 
 Regenerate the committed artefacts from the seed (about six minutes at full scale):
 
@@ -70,19 +77,71 @@ Any script accepts `--quick` for a 1,200 payer, 21 day corpus.
 
 External cross-validation on PaySim is optional. Download the Kaggle dataset, place the CSV under
 `data/paysim/`, and run `npm run paysim`. Without the file the script says so and exits cleanly.
+The general importer will also read it: `npm run ingest -- --file=<the csv> --preset=paysim`.
 
-## The authorisation endpoint
+## Your own data
+
+The console ships with a slice of the generated corpus and will replace it with a file of yours.
+Open **/data**, drop in a CSV, TSV or JSON file, confirm the column mapping it proposes, and replay
+it: the feed, the assessment panel, the audit ledger and the policy studio all then read from your
+file. A bank statement works — no payer column and no beneficiary number are both handled — and so
+does PaySim. The same page composes a single payment by hand, so you can move one field at a time
+and watch the decision move with it.
+
+```bash
+npm run ingest -- --file=data/samples/upi-log-sample.csv     # labelled, with session context
+npm run ingest -- --file=data/samples/statement-sample.csv   # a passbook export
+npm run ingest -- --file=<yours> --preset=paysim --out=data/mine-metrics.json
+```
+
+Where a file carries ground truth the CLI reports the same figures the model card does, so a result
+on your data is comparable with the committed ones.
+
+Every route into the engine also reports what the file **cannot** show. Almost no real dataset
+carries UPI session context, and without it the engine sees every payment as though the attacker had
+suppressed every indicator they control — the weakest position in the adversarial report. A detection
+rate measured that way is a floor, and it is labelled as one rather than left to stand alone.
+`docs/DATA_INPUT.md` has the detail.
+
+## The API
 
 ```
-GET  /api/v1/health       model version and digest, policy digest, ledger head
-GET  /api/v1/authorize    a complete example request body
-POST /api/v1/authorize    authorise one payment
+GET  /api/v1/health            model and policy digests, ledger head, persistence status
+GET  /api/v1/authorize         a complete example request body
+POST /api/v1/authorize         authorise one payment
+POST /api/v1/authorize/batch   authorise an ordered run, state carrying forward between payments
+POST /api/v1/import            match a file's columns and report on it; optionally replay it
 ```
 
-The response carries the decision, the calibrated probability, reason codes, the hold opened (if any)
-with the challenge to present, the full assessment, and the sealed ledger position. Invalid bodies
-return every problem at once. State is in memory per process in this first phase; the `Store`
-interface in `packages/core/src/store.ts` is what a durable backing implements.
+The authorisation response carries the decision, the calibrated probability, reason codes, the hold
+opened (if any) with the challenge to present, the full assessment, and the sealed ledger position.
+Invalid bodies return every problem at once.
+
+The batch endpoint is not a loop around the single one: the structuring window, the hold linkage and
+every behavioural baseline carry forward between payments, so a run scored together gives different
+and correct answers. `/api/v1/import` replays on a scratch engine so a file sent to be understood
+leaves nothing behind in the live one.
+
+## Where state lives
+
+Hot profile state is held in memory, because an authorisation has a budget of a few milliseconds and
+twelve signals each making a database round trip would spend it several times over. Durability is
+layered behind the working set: `PersistenceSink` in `packages/core/src/store.ts` receives writes
+after the decision has already been returned.
+
+Two backings are wired up. In the browser, an imported dataset and the replay position are kept in
+IndexedDB, so a refresh no longer costs you the file you just mapped. On the server, setting
+`KREATON_SHEETS_ID` and `KREATON_SERVICE_ACCOUNT_JSON` copies the sealed ledger, the payments and the
+holds into a Google Sheet — batched, because Google allows about sixty writes a minute, and behind
+the decision path, because a persistence failure must never fail an authorisation. A rate limit keeps
+its rows for the next flush; a permanent refusal lets them go rather than queueing behind an error
+that will never clear, and `/api/v1/health` reports `written`, `failed` and `dropped` so a sink that
+is configured but failing cannot pass for one that is working.
+
+Both are optional. Unset, the engine behaves exactly as before and the health endpoint says
+`backing: memory`. The Sheets path is verified end to end against the real API, including a check
+that a 64-digit hash survives the round trip unchanged. `docs/PERSISTENCE.md` has the setup and the
+one step people miss.
 
 ## Deployment
 
@@ -127,6 +186,8 @@ UPI traffic.
   for a tuned amount rule; under the liability-first preset, 81.1% against 19.3%.
 - Authorisation latency: mean 0.04 ms, p99 0.12 ms for twelve signals, fusion, recoverability, three
   costs and a sealed audit record.
+- 104 unit tests and a 16-check model quality gate run on every push; both must pass before a
+  deployment is built.
 
 ## Licence
 

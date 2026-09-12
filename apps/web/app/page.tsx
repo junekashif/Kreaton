@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { POLICY_PRESETS } from '@kreaton/core';
 import { AnimatedNumber } from '../components/AnimatedNumber';
@@ -66,6 +67,27 @@ export default function ConsolePage() {
 
   return (
     <>
+      {/* Once a file of the operator's own is loaded, every counter, chart and
+          rate on this page is measured on it rather than on the corpus the
+          console ships with. Saying so here is the difference between a figure
+          and a misread figure. */}
+      {snap.dataset.kind === 'imported' && (
+        <div className="banner">
+          <p>
+            Replaying <strong>{snap.dataset.name}</strong>
+            {snap.dataset.report ? `, ${withCommas(snap.dataset.report.rowsKept)} payments` : ''}. Everything below
+            is measured on that file
+            {snap.dataset.report && !snap.dataset.report.labelled
+              ? ', which carries no ground truth, so the scams-caught and false-positive figures cannot be filled in'
+              : ''}
+            .
+          </p>
+          <Link href="/data" className="btn">
+            What this file can and cannot show
+          </Link>
+        </div>
+      )}
+
       <section className="orient">
         <h1>Scam payments, stopped before the money moves</h1>
         <p className="lede">

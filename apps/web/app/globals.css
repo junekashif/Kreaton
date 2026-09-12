@@ -1373,3 +1373,299 @@ tr.selectable:focus-visible {
     overflow-x: auto;
   }
 }
+
+/* ----------------------------------------------------------------------------
+   Data in: the importer and the composed payment
+
+   New surfaces rather than new idioms. The dropzone and the sample cards are
+   the only raised planes on the page; everything else reuses the panel,
+   field and table primitives above so an imported dataset reads exactly like
+   the shipped one once it is loaded.
+---------------------------------------------------------------------------- */
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.dropzone {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  padding: clamp(20px, 4vw, 40px);
+  margin-top: 4px;
+  background: var(--bg-1);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-control);
+}
+
+.dropzone .dz-lead {
+  font-size: clamp(14px, 0.4vw + 13px, 16px);
+  color: var(--fg-0);
+}
+
+.dropzone p {
+  max-width: 60ch;
+}
+
+.sample-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-data);
+  overflow: hidden;
+}
+
+button.sample {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  text-align: left;
+  background: var(--bg-1);
+  border: 0;
+  color: var(--fg-1);
+  cursor: pointer;
+  font: inherit;
+}
+
+button.sample:hover {
+  background: var(--bg-2);
+}
+
+button.sample.is-on {
+  background: var(--bg-3);
+  color: var(--fg-0);
+  box-shadow: inset 2px 0 0 var(--fg-0);
+}
+
+.sample-label {
+  color: var(--fg-0);
+  font-size: 13px;
+}
+
+/* --- the mapping table --------------------------------------------------- */
+
+.map-group + .map-group {
+  margin-top: 18px;
+}
+
+.map-group-head {
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--fg-2);
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--line);
+}
+
+.map-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(200px, 0.7fr) minmax(0, 1fr);
+  gap: 4px 16px;
+  align-items: start;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.map-row .map-label label {
+  color: var(--fg-1);
+  font-size: 12.5px;
+}
+
+.map-row.is-mapped .map-label label {
+  color: var(--fg-0);
+}
+
+.map-row .req {
+  color: var(--stepup);
+}
+
+.map-control {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.map-control select {
+  max-width: 100%;
+}
+
+.map-missing {
+  color: var(--fg-3);
+  align-self: center;
+}
+
+.map-missing.is-quiet {
+  color: var(--fg-2);
+}
+
+/* A payment either carries an indicator or it does not; when the file cannot
+   say, the engine reads the quiet value, and that reading favours an attacker.
+   The dot marks those rows so the cost of an unmapped column is visible in the
+   mapping itself rather than only in the report below it. */
+.quiet-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-left: 5px;
+  border-radius: 50%;
+  background: var(--stepup);
+  vertical-align: baseline;
+}
+
+/* --- notices ------------------------------------------------------------- */
+
+.alert {
+  padding: 10px 12px;
+  background: oklch(0.68 0.22 20 / 0.14);
+  border-left: 2px solid var(--block);
+  border-radius: var(--radius-data);
+  color: var(--fg-0);
+  font-size: 13px;
+}
+
+.banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 12px;
+  margin-bottom: 14px;
+  background: var(--bg-2);
+  border-left: 2px solid var(--stepup);
+  border-radius: var(--radius-data);
+  font-size: 13px;
+}
+
+.warnings {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.warnings li {
+  padding-left: 14px;
+  border-left: 2px solid var(--stepup);
+  color: var(--fg-1);
+  font-size: 13px;
+  max-width: 84ch;
+}
+
+.disclose {
+  border-top: 1px solid var(--line);
+  padding: 8px 0 4px;
+}
+
+.disclose > summary {
+  cursor: pointer;
+  color: var(--fg-1);
+  font-size: 12.5px;
+}
+
+.disclose > summary:hover {
+  color: var(--fg-0);
+}
+
+.plain-list {
+  margin: 8px 0 4px;
+  padding-left: 16px;
+  display: grid;
+  gap: 5px;
+  color: var(--fg-1);
+  font-size: 12.5px;
+  max-width: 84ch;
+}
+
+.tag-fraud {
+  color: var(--block);
+}
+
+/* --- composed payment ---------------------------------------------------- */
+
+.field.check {
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0 8px;
+  align-items: center;
+}
+
+.field.check input[type='checkbox'] {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--fg-0);
+}
+
+.compose-verdict {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.compose-p {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(19px, 0.7vw + 15.5px, 24px);
+  line-height: 1.15;
+}
+
+/* A flex or grid child will not shrink below its content unless told to, and
+   a preformatted block has no natural wrap point. Without both of these the
+   request body pushed the whole page sideways at 390px. */
+.stack {
+  min-width: 0;
+}
+
+.code-block {
+  margin: 0 0 8px;
+  max-width: 100%;
+  padding: 10px;
+  max-height: 340px;
+  overflow: auto;
+  background: var(--bg-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-data);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--fg-1);
+  white-space: pre;
+}
+
+.sticky-run {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  padding: 10px 0;
+  margin-top: 4px;
+  background: linear-gradient(to top, var(--bg-0) 60%, transparent);
+}
+
+@media (max-width: 860px) {
+  .map-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+
+  .map-missing {
+    align-self: start;
+  }
+}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useSyncExternalStore } from 'react';
-import { getSession } from './session';
+import { SHIPPED_DATASET, getSession } from './session';
 import type { ConsoleSession, SessionSnapshot } from './session';
 
 const SERVER_SNAPSHOT: SessionSnapshot = {
@@ -9,6 +9,7 @@ const SERVER_SNAPSHOT: SessionSnapshot = {
   error: null,
   model: null,
   slice: null,
+  dataset: SHIPPED_DATASET,
   cursor: 0,
   total: 0,
   playing: false,
