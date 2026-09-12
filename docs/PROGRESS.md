@@ -29,7 +29,7 @@ Everything in the original scope is built and verified:
 | `packages/core` engine | complete, 51 tests pass, typechecks |
 | `packages/sim` | complete, plus `gate.ts`, `paysim.ts`, `modelcard.ts`, `ingest.ts`, barrel `index.ts` |
 | `packages/ingest` | complete, 31 tests, zero dependencies |
-| `packages/sheets` | complete, 22 tests; verified end to end against the real Sheets API |
+| `packages/sheets` | complete, 25 tests; verified end to end against the real Sheets API and live on production |
 | `apps/web` console | complete: `/`, `/data`, `/policy`, `/trace`, `/trace/[txnId]`, `/audit`, `/adversarial`, `/portfolio`, `/model`, `POST /api/v1/authorize`, `POST /api/v1/authorize/batch`, `POST /api/v1/import`, `GET /api/v1/health`. Lint clean, `next build` clean, verified from a cold clone |
 | `.github/workflows` | `ci.yml` (typecheck, lint, tests, gate, build) and `deploy.yml` (preflight, verify, `vercel build`, `vercel deploy --prebuilt --prod`, authenticated smoke test) |
 | `analysis/` | `crosscheck.py` (10/10 checks pass against sklearn), `sensitivity.py` (writes `docs/SENSITIVITY.md`) |
@@ -269,7 +269,7 @@ integration surface for that rather than a connection to one.
 12. **Docs.** `docs/DATA_INPUT.md` and `docs/PERSISTENCE.md`, plus README sections. Runnable
     samples in `data/samples/`.
 
-Verified by running: 104 tests pass (was 46), typecheck and lint clean, `next build` clean, the
+Verified by running: 107 tests pass (was 46), typecheck and lint clean, `next build` clean, the
 16-check gate passes, both new endpoints exercised with curl, and the console import driven end
 to end in a browser - a bank statement's 89,000 rupee scam payment blocked at 90.4% with the
 drain ratio computed from the file's own balance column.
@@ -279,7 +279,7 @@ drain ratio computed from the file's own balance column.
 ```bash
 cd C:/D/Kreaton
 npm install
-npm run typecheck && npm run lint && npm test     # 104 tests
+npm run typecheck && npm run lint && npm test     # 107 tests
 npm run gate                     # 16 checks, ~1 min
 npm run dev                      # console on :3000, /data for your own files
 npm run artefacts                # seed, evaluate, adversarial, model card (~6 min)
@@ -305,10 +305,9 @@ None block the submission.
   account, Keys: delete that key, create a new one, and update `.env.local` and the Vercel
   environment. Nothing else about the setup changes. The account's address and the
   spreadsheet id are deliberately not recorded in this repository, which is public.
-- **The spreadsheet holds probe rows** from the verification run (`probe_1` to `probe_3`,
-  `sheets_probe_*`, `fixed_probe_*`), including one ledger row written before the union bug
-  was fixed, which is why its txnId, decision and probability columns are blank. Clear the
-  three tabs before using the sheet for anything real.
+- **The spreadsheet is clean.** The probe rows from every verification run were removed with
+  `SheetsClient.truncate`, and an append afterwards was confirmed to land directly under the
+  header. All three tabs hold their header row and nothing else.
 - **Real payment rails are not connected and nothing moves money.** `POST /api/v1/authorize`
   is the integration surface a PSP would call in the authorisation path; there is no
   connection to NPCI, a switch, or any provider sandbox.

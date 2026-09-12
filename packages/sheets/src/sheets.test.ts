@@ -29,8 +29,11 @@ interface Call {
 }
 
 /** A stand-in for the Sheets API that records what it was asked to do. */
-function fakeGoogle(options: { tabs?: string[]; fail?: (call: Call) => number | null } = {}) {
+function fakeGoogle(
+  options: { tabs?: string[]; contents?: Record<string, string[][]>; fail?: (call: Call) => number | null } = {},
+) {
   const calls: Call[] = [];
+  const deletions: Array<{ sheetId: number; dimension: string; startIndex: number; endIndex: number }> = [];
   let tabs = options.tabs ?? [];
 
   const fetcher = async (url: string, init: RequestInit): Promise<Response> => {
@@ -47,8 +50,14 @@ function fakeGoogle(options: { tabs?: string[]; fail?: (call: Call) => number | 
       return Response.json({ access_token: 'tok_test', expires_in: 3600 });
     }
     if (url.includes(':batchUpdate')) {
-      for (const r of (body as { requests: Array<{ addSheet?: { properties: { title: string } } }> }).requests) {
+      for (const r of (body as {
+        requests: Array<{
+          addSheet?: { properties: { title: string } };
+          deleteDimension?: { range: { sheetId: number; dimension: string; startIndex: number; endIndex: number } };
+        }>;
+      }).requests) {
         if (r.addSheet) tabs.push(r.addSheet.properties.title);
+        if (r.deleteDimension) deletions.push(r.deleteDimension.range);
       }
       return Response.json({});
     }
@@ -57,14 +66,18 @@ function fakeGoogle(options: { tabs?: string[]; fail?: (call: Call) => number | 
       return Response.json({ updates: { updatedRows: rows.length } });
     }
     if (url.includes('/values/')) {
-      return Response.json({ values: [] });
+      const tab = decodeURIComponent(/values\/([^!]+)!/.exec(url)?.[1] ?? '');
+      return Response.json({ values: options.contents?.[tab] ?? [] });
     }
-    return Response.json({ sheets: tabs.map((title) => ({ properties: { title } })) });
+    return Response.json({
+      sheets: tabs.map((title, i) => ({ properties: { title, sheetId: 100 + i, gridProperties: { rowCount: 1000 } } })),
+    });
   };
 
   return {
     fetcher,
     calls,
+    deletions,
     get tabs() {
       return tabs;
     },
@@ -215,6 +228,27 @@ describe('the client', () => {
     const google = fakeGoogle();
     expect(await client(google).append('ledger', [])).toBe(0);
     expect(google.appends()).toHaveLength(0);
+  });
+
+  it('truncates by deleting rows below the header, never the header itself', async () => {
+    const google = fakeGoogle({
+      tabs: ['ledger', 'holds'],
+      contents: { ledger: [['seq'], ['1'], ['2'], ['3']] },
+    });
+    const removed = await client(google).truncate('ledger');
+    expect(removed).toBe(3);
+    expect(google.deletions).toEqual([{ sheetId: 100, dimension: 'ROWS', startIndex: 1, endIndex: 4 }]);
+  });
+
+  it('does nothing to a tab that only has its header', async () => {
+    const google = fakeGoogle({ tabs: ['ledger'], contents: { ledger: [['seq']] } });
+    expect(await client(google).truncate('ledger')).toBe(0);
+    expect(google.deletions).toHaveLength(0);
+  });
+
+  it('refuses to truncate a tab that does not exist', async () => {
+    const google = fakeGoogle({ tabs: ['ledger'] });
+    await expect(client(google).truncate('nope')).rejects.toThrow(/No tab named/);
   });
 
   it('marks rate limits and server errors retryable, and a bad key not', () => {

@@ -202,6 +202,13 @@ out with four empty columns on every decision. The fixtures are built from the
 real union now, and there is a test per entry kind. A fake transport verifies
 the transport; it cannot verify an assumption about the data.
 
+To empty the three tabs back to their headers — after a test run, or before the
+sheet is used for anything real — `SheetsClient.truncate(tab)` deletes every
+row below the header. Rows are removed rather than cleared, because an emptied
+cell still counts as part of the table to the append endpoint and new rows
+would otherwise land after a block of blanks. The probe rows from the
+verification runs were removed this way.
+
 To check a real sheet end to end once the variables are set:
 
 ```bash

@@ -1,9 +1,10 @@
 /**
  * The slice of the Google Sheets API this project uses.
  *
- * Three operations: find out which tabs a spreadsheet has, create the ones it
- * is missing, and append rows to one. Everything else the API offers is out of
- * scope, and leaving it out keeps the surface small enough to read.
+ * Four operations: find out which tabs a spreadsheet has, create the ones it
+ * is missing, append rows to one, and empty one back to its header. Everything
+ * else the API offers is out of scope, and leaving it out keeps the surface
+ * small enough to read.
  */
 
 import { TokenSource } from './auth.js';
@@ -58,10 +59,51 @@ export class SheetsClient {
 
   /** Tab titles currently in the spreadsheet. */
   async listTabs(): Promise<string[]> {
-    const json = (await this.request('?fields=sheets.properties.title')) as {
-      sheets?: Array<{ properties?: { title?: string } }>;
+    return (await this.tabs()).map((t) => t.title);
+  }
+
+  /** Tabs with the numeric ids the structural API addresses them by. */
+  async tabs(): Promise<Array<{ title: string; sheetId: number; rowCount: number }>> {
+    const json = (await this.request(
+      '?fields=sheets.properties(title,sheetId,gridProperties.rowCount)',
+    )) as {
+      sheets?: Array<{ properties?: { title?: string; sheetId?: number; gridProperties?: { rowCount?: number } } }>;
     };
-    return (json.sheets ?? []).map((s) => s.properties?.title ?? '').filter((t) => t !== '');
+    return (json.sheets ?? [])
+      .map((s) => ({
+        title: s.properties?.title ?? '',
+        sheetId: s.properties?.sheetId ?? -1,
+        rowCount: s.properties?.gridProperties?.rowCount ?? 0,
+      }))
+      .filter((t) => t.title !== '' && t.sheetId >= 0);
+  }
+
+  /**
+   * Delete every row below the header, leaving the header in place.
+   *
+   * Rows are removed, not cleared: an emptied cell still counts as part of
+   * the table to the append endpoint, so a cleared tab would take new rows
+   * after a block of blanks. Returns how many rows were removed.
+   */
+  async truncate(tab: string): Promise<number> {
+    const meta = (await this.tabs()).find((t) => t.title === tab);
+    if (!meta) throw new SheetsError(404, `No tab named "${tab}".`);
+    const values = await this.read(tab, 'A:A');
+    const dataRows = Math.max(0, values.length - 1);
+    if (dataRows === 0) return 0;
+    await this.request(':batchUpdate', {
+      method: 'POST',
+      body: JSON.stringify({
+        requests: [
+          {
+            deleteDimension: {
+              range: { sheetId: meta.sheetId, dimension: 'ROWS', startIndex: 1, endIndex: 1 + dataRows },
+            },
+          },
+        ],
+      }),
+    });
+    return dataRows;
   }
 
   /** Create any of these tabs that do not exist. Returns the ones created. */

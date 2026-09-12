@@ -56,7 +56,7 @@ Node 20.9 or later. Python 3.11 or later with NumPy, SciPy, pandas and scikit-le
 ```bash
 npm install
 npm run typecheck          # engine, importer, sheets sink, simulation and console
-npm test                   # 104 unit tests
+npm test                   # 107 unit tests
 npm run gate               # model quality gate on a reduced corpus, as run in CI
 npm run dev                # console at http://localhost:3000
 ```
@@ -186,7 +186,7 @@ UPI traffic.
   for a tuned amount rule; under the liability-first preset, 81.1% against 19.3%.
 - Authorisation latency: mean 0.04 ms, p99 0.12 ms for twelve signals, fusion, recoverability, three
   costs and a sealed audit record.
-- 104 unit tests and a 16-check model quality gate run on every push; both must pass before a
+- 107 unit tests and a 16-check model quality gate run on every push; both must pass before a
   deployment is built.
 
 ## Licence
