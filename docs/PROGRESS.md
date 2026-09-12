@@ -316,6 +316,13 @@ None block the submission.
 - **The org repo's About box** (description, website link) needs admin, which the team does
   not have. Ask the organisers to set it or grant admin. The README carries the same
   information, so nothing is lost.
+- **The deployment builds inside `apps/web`, not at the root.** `apps/web/vercel.json` sets
+  `buildCommand: npm run build`, and that script now compiles the workspace packages before
+  `next build`. The first deploy of session 5 failed because it did not: `@kreaton/ingest` and
+  `@kreaton/sheets` resolve through `dist/`, which a fresh checkout does not have, and
+  `transpilePackages` does not rescue a package whose entry file is missing. CI had passed
+  because the root `build` script compiles the packages first. Reproduced locally by deleting
+  every `dist/` and running the build from `apps/web`; fixed the same way.
 - **`deploy.yml` builds on Node 22 and Vercel runs Node 24.** Working fine; the first place
   to look if a deploy ever behaves oddly.
 - **Session state is per tab and lost on full reload** (in-memory engine). Client-side

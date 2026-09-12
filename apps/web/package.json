@@ -7,7 +7,7 @@
   "private": true,
   "scripts": {
     "prebuild": "tsc -b ../../packages/core ../../packages/sim",
-    "build": "next build",
+    "build": "npm run build:packages --prefix ../.. && next build",
     "dev": "next dev",
     "start": "next start",
     "lint": "eslint .",
